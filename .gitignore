@@ -1,2 +1,11 @@
 .pio/
 .vscode/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.swo
+*.log
+rf_events/

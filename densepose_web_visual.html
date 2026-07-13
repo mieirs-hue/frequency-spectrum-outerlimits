@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DensePose ESP32 3D Visual</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #111a2d;
+      --ink: #e5ecff;
+      --muted: #9fb1d6;
+      --a: #19d3ff;
+      --b: #ff9a2f;
+      --ok: #23d18b;
+      --warn: #ffc857;
+      --bad: #ff5d73;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: radial-gradient(circle at 20% 10%, #1a2947 0%, var(--bg) 50%);
+      color: var(--ink);
+      font-family: "Segoe UI", "Noto Sans", sans-serif;
+    }
+
+    #app {
+      display: grid;
+      grid-template-columns: 330px 1fr;
+      height: 100%;
+    }
+
+    #panel {
+      background: linear-gradient(180deg, #0e1728 0%, #101b31 100%);
+      border-right: 1px solid #203154;
+      padding: 14px;
+      overflow: auto;
+    }
+
+    #panel h1 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: 0.3px;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 1px solid #2f4779;
+      background: #152242;
+      color: var(--ink);
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    button:hover {
+      background: #1b2b53;
+    }
+
+    .card {
+      border: 1px solid #263b66;
+      border-radius: 10px;
+      padding: 10px;
+      margin: 10px 0;
+      background: #101a31;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .mono {
+      font-family: "JetBrains Mono", "Consolas", monospace;
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .a { color: var(--a); }
+    .b { color: var(--b); }
+
+    #status {
+      font-size: 13px;
+      margin-top: 8px;
+      color: var(--warn);
+    }
+
+    #log {
+      height: 210px;
+      overflow: auto;
+      white-space: pre-wrap;
+      border: 1px solid #243960;
+      border-radius: 8px;
+      padding: 8px;
+      background: #0b1324;
+      font-family: "JetBrains Mono", "Consolas", monospace;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    #view {
+      position: relative;
+    }
+
+    #legend {
+      position: absolute;
+      right: 14px;
+      top: 14px;
+      background: rgba(14, 24, 43, 0.85);
+      border: 1px solid #2a406d;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+
+    canvas { display: block; }
+
+    @media (max-width: 960px) {
+      #app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+
+      #panel {
+        border-right: none;
+        border-bottom: 1px solid #203154;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <aside id="panel">
+      <h1>DensePose Serial 3D</h1>
+      <div class="sub">Direct browser connection to Arduino Nano ESP32 boards via Web Serial.</div>
+
+      <div class="row">
+        <button id="connectA">Connect Board A</button>
+        <button id="connectB">Connect Board B</button>
+      </div>
+      <div class="row">
+        <button id="disconnectAll">Disconnect All</button>
+      </div>
+
+      <div class="card">
+        <div class="label">Motion Tuning</div>
+        <div class="row" style="align-items:center; margin-top: 6px;">
+          <label for="sensitivity" class="mono" style="min-width: 86px;">Sensitivity</label>
+          <input id="sensitivity" type="range" min="1" max="3000" value="900" style="flex:1;" />
+        </div>
+        <div id="sensitivityValue" class="mono">x900</div>
+        <div class="row" style="margin-top: 8px;">
+          <button id="normalizeBtn">Normalize Baseline</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">Board A state</div>
+        <div id="stateA" class="mono a">disconnected</div>
+        <div class="label" style="margin-top:8px">Last packet</div>
+        <div id="lastA" class="mono">(none)</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Board B state</div>
+        <div id="stateB" class="mono b">disconnected</div>
+        <div class="label" style="margin-top:8px">Last packet</div>
+        <div id="lastB" class="mono">(none)</div>
+      </div>
+
+      <div id="status">Status: waiting for board connection...</div>
+      <div class="label" style="margin-top:8px">Live log</div>
+      <div id="log"></div>
+    </aside>
+
+    <section id="view">
+      <div id="legend">
+        <div><span class="a">A</span> cyan node and trail</div>
+        <div><span class="b">B</span> orange node and trail</div>
+        <div>Pink particle = motion transfer</div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+    import * as THREE from "https://unpkg.com/three@0.165.0/build/three.module.js";
+
+    const stateA = document.getElementById("stateA");
+    const stateB = document.getElementById("stateB");
+    const lastA = document.getElementById("lastA");
+    const lastB = document.getElementById("lastB");
+    const statusEl = document.getElementById("status");
+    const logEl = document.getElementById("log");
+    const sensitivityInput = document.getElementById("sensitivity");
+    const sensitivityValue = document.getElementById("sensitivityValue");
+    const normalizeBtn = document.getElementById("normalizeBtn");
+
+    const LIVE_TIMEOUT_MS = 1500;
+    const boardState = {
+      A: { connected: false, lastPacket: "(none)", pose: null, motion: 0, baselineMotion: 0, pulses: [], port: null, reader: null, lastRxMs: 0 },
+      B: { connected: false, lastPacket: "(none)", pose: null, motion: 0, baselineMotion: 0, pulses: [], port: null, reader: null, lastRxMs: 0 },
+    };
+
+    let sensitivityScale = Number(sensitivityInput.value);
+
+    function log(line) {
+      const ts = new Date().toLocaleTimeString();
+      logEl.textContent += `[${ts}] ${line}\n`;
+      if (logEl.textContent.length > 18000) {
+        logEl.textContent = logEl.textContent.slice(-14000);
+      }
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function browserHint() {
+      const ua = navigator.userAgent || "";
+      const isFirefox = /firefox/i.test(ua);
+      const hasWebSerial = !!navigator.serial;
+      if (isFirefox) {
+        return "Firefox does not support Web Serial. Use Chrome/Edge and open this page via localhost.";
+      }
+      if (!hasWebSerial) {
+        return "Web Serial not available. Use recent Chrome/Edge on localhost (http://127.0.0.1:8765).";
+      }
+      return "Click Connect Board A/B, then choose /dev/ttyACM0 and /dev/ttyACM1 in browser prompts.";
+    }
+
+    function updatePanel() {
+      stateA.textContent = boardState.A.connected ? "connected" : "disconnected";
+      stateB.textContent = boardState.B.connected ? "connected" : "disconnected";
+      lastA.textContent = boardState.A.lastPacket;
+      lastB.textContent = boardState.B.lastPacket;
+      sensitivityValue.textContent = `x${Math.round(sensitivityScale)}`;
+      const connected = ["A", "B"].filter(k => boardState[k].connected).length;
+      const now = performance.now();
+      const live = ["A", "B"].filter(k => now - boardState[k].lastRxMs <= LIVE_TIMEOUT_MS).length;
+      statusEl.style.color = connected === 2 ? "#23d18b" : connected === 1 ? "#ffc857" : "#ff5d73";
+      statusEl.textContent = connected === 2 && live === 2
+        ? "Status: both boards connected and live"
+        : connected === 2
+        ? "Status: both connected, waiting for live packets"
+        : connected === 1
+        ? "Status: one board connected"
+        : "Status: waiting for board connection...";
+    }
+
+    function parsePose(line) {
+      const txt = line.trim();
+      if (!txt) return null;
+
+      const parts = txt.split(",").map(v => v.trim());
+      if (parts.length >= 4 && parts[0].toUpperCase() === "POSE") {
+        const x = Number(parts[1]);
+        const y = Number(parts[2]);
+        const z = Number(parts[3]);
+        const activity = Number(parts[4] || "0.5");
+        if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+          return { x, y, z, activity: Number.isFinite(activity) ? activity : 0.5 };
+        }
+      }
+
+      if (parts.length >= 3) {
+        const x = Number(parts[0]);
+        const y = Number(parts[1]);
+        const z = Number(parts[2]);
+        if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+          return { x, y, z, activity: 0.5 };
+        }
+      }
+
+      return null;
+    }
+
+    function parseCsiMotion(line) {
+      const txt = line.trim();
+      if (!txt.toUpperCase().startsWith("CSI,")) return null;
+      const m = txt.match(/motion\s*=\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/i);
+      if (!m) return null;
+      const v = Number(m[1]);
+      return Number.isFinite(v) ? v : null;
+    }
+
+    function isSignalLike(line) {
+      const letters = line.toUpperCase().replace(/[^A-Z]/g, "");
+      if (!letters) return false;
+      const target = "SIGNAL";
+      let idx = 0;
+      for (const c of letters) {
+        if (idx < target.length && c === target[idx]) idx += 1;
+      }
+      return idx >= 5;
+    }
+
+    async function connectBoard(name) {
+      if (!('serial' in navigator)) {
+        const msg = browserHint();
+        alert(msg);
+        log(msg);
+        return;
+      }
+
+      try {
+        const port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+
+        boardState[name].connected = true;
+        boardState[name].port = port;
+        log(`Board ${name} connected.`);
+        updatePanel();
+
+        const decoder = new TextDecoderStream();
+        port.readable.pipeTo(decoder.writable).catch(() => {});
+        const reader = decoder.readable.getReader();
+        boardState[name].reader = reader;
+
+        let buffer = "";
+        while (boardState[name].connected) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += value || "";
+          const lines = buffer.split(/\r?\n/);
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            boardState[name].lastPacket = trimmed;
+            boardState[name].lastRxMs = performance.now();
+
+            const pose = parsePose(trimmed);
+            if (pose) {
+              boardState[name].pose = pose;
+            } else {
+              const motion = parseCsiMotion(trimmed);
+              if (motion !== null) {
+                boardState[name].motion = motion;
+              }
+            }
+
+            if (isSignalLike(trimmed)) {
+              boardState[name].pulses.push(performance.now());
+            }
+
+            updatePanel();
+          }
+        }
+      } catch (err) {
+        const hint = /denied|permission|cancel/i.test(err.message)
+          ? "(Permission was denied or chooser was closed.)"
+          : /busy|in use|network|claimed/i.test(err.message)
+          ? "(Port is busy. Close any Python serial tool and other board tabs, then retry.)"
+          : "";
+        log(`Board ${name} error: ${err.message} ${hint}`.trim());
+      } finally {
+        boardState[name].connected = false;
+        boardState[name].reader = null;
+        boardState[name].port = null;
+        updatePanel();
+      }
+    }
+
+    async function disconnectBoard(name) {
+      const b = boardState[name];
+      b.connected = false;
+      if (b.reader) {
+        try { await b.reader.cancel(); } catch {}
+      }
+      if (b.port) {
+        try { await b.port.close(); } catch {}
+      }
+      b.port = null;
+      b.reader = null;
+      updatePanel();
+    }
+
+    document.getElementById("connectA").addEventListener("click", () => connectBoard("A"));
+    document.getElementById("connectB").addEventListener("click", () => connectBoard("B"));
+    document.getElementById("disconnectAll").addEventListener("click", async () => {
+      await disconnectBoard("A");
+      await disconnectBoard("B");
+      log("Disconnected all boards.");
+    });
+
+    sensitivityInput.addEventListener("input", () => {
+      sensitivityScale = Number(sensitivityInput.value);
+      updatePanel();
+    });
+
+    normalizeBtn.addEventListener("click", () => {
+      boardState.A.baselineMotion = boardState.A.motion;
+      boardState.B.baselineMotion = boardState.B.motion;
+      log(`Baseline captured. A=${boardState.A.baselineMotion.toFixed(4)} B=${boardState.B.baselineMotion.toFixed(4)}`);
+      updatePanel();
+    });
+
+    navigator.serial?.addEventListener?.("disconnect", () => {
+      log("Serial device disconnected.");
+      updatePanel();
+    });
+
+    const view = document.getElementById("view");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b1220);
+
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.set(0, 1.8, 4.8);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    view.appendChild(renderer.domElement);
+
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x223355, 1.1);
+    scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+    dir.position.set(3, 4, 2);
+    scene.add(dir);
+
+    const grid = new THREE.GridHelper(4, 16, 0x2a3f67, 0x1c2b4c);
+    grid.position.y = -0.9;
+    scene.add(grid);
+
+    const beamMat = new THREE.LineBasicMaterial({ color: 0x8b9bbf, transparent: true, opacity: 0.6 });
+    const beamGeom = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-1.2, 0.9, 0),
+      new THREE.Vector3(1.2, 0.9, 0),
+    ]);
+    const beam = new THREE.Line(beamGeom, beamMat);
+    scene.add(beam);
+
+    function makeNode(color) {
+      const g = new THREE.SphereGeometry(0.09, 24, 24);
+      const m = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.1, emissive: color, emissiveIntensity: 0.3 });
+      return new THREE.Mesh(g, m);
+    }
+
+    const nodeA = makeNode(0x19d3ff);
+    const nodeB = makeNode(0xff9a2f);
+    nodeA.position.set(-1.2, 0.9, 0);
+    nodeB.position.set(1.2, 0.9, 0);
+    scene.add(nodeA, nodeB);
+
+    const particle = new THREE.Mesh(
+      new THREE.SphereGeometry(0.055, 18, 18),
+      new THREE.MeshStandardMaterial({ color: 0xff5d73, emissive: 0xff5d73, emissiveIntensity: 0.7 })
+    );
+    scene.add(particle);
+
+    const trailA = [];
+    const trailB = [];
+    const maxTrail = 100;
+
+    function makeTrail(color) {
+      const geom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.8 });
+      const line = new THREE.Line(geom, mat);
+      scene.add(line);
+      return line;
+    }
+
+    const lineA = makeTrail(0x19d3ff);
+    const lineB = makeTrail(0xff9a2f);
+
+    function updateTrail(line, points) {
+      if (points.length < 2) return;
+      line.geometry.setFromPoints(points);
+    }
+
+    function fromPose(pose) {
+      return new THREE.Vector3(
+        Math.max(-1.5, Math.min(1.5, pose.x * 1.5)),
+        Math.max(-0.5, Math.min(2.2, pose.z)),
+        Math.max(-1.3, Math.min(1.3, pose.y * 1.3))
+      );
+    }
+
+    function resize() {
+      const w = view.clientWidth;
+      const h = view.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    function animate(t) {
+      const now = performance.now();
+      const aLive = now - boardState.A.lastRxMs <= LIVE_TIMEOUT_MS;
+      const bLive = now - boardState.B.lastRxMs <= LIVE_TIMEOUT_MS;
+
+      function positionFromState(name, live, sideX) {
+        const st = boardState[name];
+        if (!live) return new THREE.Vector3(sideX, 0.9, 0);
+        const delta = Math.max(0, st.motion - st.baselineMotion);
+        const n = Math.max(0, Math.min(1, delta * sensitivityScale));
+
+        // Prefer real CSI motion mapping for visibility during tuning.
+        return new THREE.Vector3(sideX, -0.55 + 1.10 * n, 0.85 + 1.25 * n);
+      }
+
+      const aPos = positionFromState("A", aLive, -0.85);
+      const bPos = positionFromState("B", bLive, 0.85);
+
+      nodeA.position.lerp(aPos, 0.28);
+      nodeB.position.lerp(bPos, 0.28);
+
+      if (aLive && boardState.A.pose) {
+        trailA.push(nodeA.position.clone());
+      }
+      if (bLive && boardState.B.pose) {
+        trailB.push(nodeB.position.clone());
+      }
+      if (trailA.length > maxTrail) trailA.shift();
+      if (trailB.length > maxTrail) trailB.shift();
+      updateTrail(lineA, trailA);
+      updateTrail(lineB, trailB);
+
+      const transfer = 0.5 + 0.5 * Math.sin(t * 0.0038);
+      particle.visible = aLive || bLive;
+      if (particle.visible) {
+        particle.position.lerpVectors(nodeA.position, nodeB.position, transfer);
+        particle.position.y += 0.18 * Math.sin(t * 0.005);
+      }
+
+      beam.geometry.setFromPoints([nodeA.position, nodeB.position]);
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+    updatePanel();
+    log(browserHint());
+  </script>
+</body>
+</html>
