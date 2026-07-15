@@ -188,6 +188,22 @@ button:hover { background: #20355e; }
   color: #e8fff5;
 }
 
+.scene-theme-btn {
+  width: 100%;
+  background: linear-gradient(180deg, #1f3f6a, #1a3052);
+  border-color: #4f79b0;
+}
+
+.scene-theme-btn.active {
+  background: linear-gradient(180deg, #2d3248, #1d2338);
+  border-color: #8cb3f5;
+  color: #ecf4ff;
+}
+
+body.scene-night .panel {
+  background: linear-gradient(180deg, #0d1830 0%, #0a1327 100%);
+}
+
 .dev-only-block {
   margin-top: 8px;
 }

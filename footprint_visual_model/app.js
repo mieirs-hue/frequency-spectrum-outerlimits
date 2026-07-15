@@ -28,6 +28,7 @@
   const rawSolverEl = document.getElementById("rawSolver");
   const uiMonitorBtn = document.getElementById("uiMonitorBtn");
   const uiDevBtn = document.getElementById("uiDevBtn");
+  const sceneThemeBtn = document.getElementById("sceneThemeBtn");
   const monitorOccupancyEl = document.getElementById("monitorOccupancy");
   const monitorTrackingEl = document.getElementById("monitorTracking");
   const monitorMovementEl = document.getElementById("monitorMovement");
@@ -281,6 +282,7 @@
       upLocked: false,
     },
     source: null,
+    sceneTheme: "day",
     sim: {
       running: false,
       speed: Number(simSpeedInput.value),
@@ -1144,14 +1146,132 @@
     }
   }
 
+  function applyThreeTheme(theme) {
+    const nextTheme = theme === "night" ? "night" : "day";
+    state.sceneTheme = nextTheme;
+
+    if (sceneThemeBtn) {
+      sceneThemeBtn.textContent = nextTheme === "day" ? "Scene: Daylight" : "Scene: Night Ops";
+      sceneThemeBtn.classList.toggle("active", nextTheme === "night");
+    }
+    document.body.classList.toggle("scene-night", nextTheme === "night");
+
+    if (!state.three) return;
+    const {
+      scene,
+      hemiLight,
+      sunLight,
+      moonLight,
+      pathGlow,
+      windowWallGlow,
+      cloudGroup,
+      starsGroup,
+      lampHeads,
+      perimeterMark,
+      exteriorLand,
+      exteriorRoad,
+    } = state.three;
+
+    if (nextTheme === "day") {
+      scene.background.set(0x87b7dd);
+      scene.fog.color.set(0x87b7dd);
+      scene.fog.near = 24;
+      scene.fog.far = 72;
+      hemiLight.intensity = 1.05;
+      hemiLight.color.set(0xc5e2ff);
+      hemiLight.groundColor.set(0x35533d);
+      sunLight.intensity = 0.9;
+      sunLight.color.set(0xfff8df);
+      moonLight.intensity = 0.0;
+      if (pathGlow?.material) {
+        pathGlow.material.color.set(0x9be6ff);
+        pathGlow.material.opacity = 0.09;
+      }
+      if (windowWallGlow?.material) {
+        windowWallGlow.material.color.set(0x7cd4ff);
+        windowWallGlow.material.opacity = 0.12;
+      }
+      if (perimeterMark?.material) {
+        perimeterMark.material.color.set(0x71d7ff);
+        perimeterMark.material.opacity = 0.75;
+      }
+      if (exteriorLand?.material) exteriorLand.material.color.set(0x2f7448);
+      if (exteriorRoad?.material) exteriorRoad.material.color.set(0x515862);
+      if (cloudGroup) {
+        cloudGroup.visible = true;
+        cloudGroup.children.forEach((cloud) => {
+          cloud.children.forEach((piece) => {
+            piece.material.opacity = 0.82;
+          });
+        });
+      }
+      if (starsGroup) starsGroup.visible = false;
+      if (lampHeads?.length) {
+        lampHeads.forEach((lamp) => {
+          lamp.material.color.set(0xc6f4ff);
+          lamp.material.opacity = 0.2;
+        });
+      }
+    } else {
+      scene.background.set(0x061021);
+      scene.fog.color.set(0x061021);
+      scene.fog.near = 18;
+      scene.fog.far = 56;
+      hemiLight.intensity = 0.52;
+      hemiLight.color.set(0x7fa4cf);
+      hemiLight.groundColor.set(0x1f2b22);
+      sunLight.intensity = 0.18;
+      sunLight.color.set(0x9bbce0);
+      moonLight.intensity = 0.52;
+      if (pathGlow?.material) {
+        pathGlow.material.color.set(0x6bcfff);
+        pathGlow.material.opacity = 0.2;
+      }
+      if (windowWallGlow?.material) {
+        windowWallGlow.material.color.set(0x78cbff);
+        windowWallGlow.material.opacity = 0.22;
+      }
+      if (perimeterMark?.material) {
+        perimeterMark.material.color.set(0x79d9ff);
+        perimeterMark.material.opacity = 0.86;
+      }
+      if (exteriorLand?.material) exteriorLand.material.color.set(0x1f5032);
+      if (exteriorRoad?.material) exteriorRoad.material.color.set(0x343a43);
+      if (cloudGroup) {
+        cloudGroup.visible = true;
+        cloudGroup.children.forEach((cloud) => {
+          cloud.children.forEach((piece) => {
+            piece.material.opacity = 0.4;
+          });
+        });
+      }
+      if (starsGroup) starsGroup.visible = true;
+      if (lampHeads?.length) {
+        lampHeads.forEach((lamp) => {
+          lamp.material.color.set(0xffed93);
+          lamp.material.opacity = 0.82;
+        });
+      }
+    }
+  }
+
   function initThreeScene() {
     if (!hasThree) return null;
 
     document.body.classList.add("three-mode");
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x07111e);
-    scene.fog = new THREE.Fog(0x07111e, 18, 60);
+    scene.background = new THREE.Color(0x87b7dd);
+    scene.fog = new THREE.Fog(0x87b7dd, 24, 72);
+
+    const hemiLight = new THREE.HemisphereLight(0xc5e2ff, 0x35533d, 1.05);
+    scene.add(hemiLight);
+    const sunLight = new THREE.DirectionalLight(0xfff8df, 0.9);
+    sunLight.position.set(7.5, 11.0, 5.0);
+    scene.add(sunLight);
+    const moonLight = new THREE.DirectionalLight(0x92b8ff, 0.0);
+    moonLight.position.set(-8.0, 8.8, -9.0);
+    scene.add(moonLight);
 
     const width = threeStage.clientWidth || canvas.width;
     const height = threeStage.clientHeight || canvas.height;
@@ -1163,6 +1283,7 @@
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(window.devicePixelRatio || 1);
     renderer.setSize(width, height, false);
+    renderer.outputEncoding = THREE.sRGBEncoding;
     threeStage.innerHTML = "";
     threeStage.appendChild(renderer.domElement);
 
@@ -1171,7 +1292,7 @@
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(12, 12),
-      new THREE.MeshBasicMaterial({ color: 0x13253d, transparent: true, opacity: 0.45, wireframe: true })
+      new THREE.MeshToonMaterial({ color: 0x1d3d5f, transparent: true, opacity: 0.86 })
     );
     floor.rotation.x = -Math.PI / 2;
     house.add(floor);
@@ -1193,7 +1314,7 @@
     const exteriorCenter = rotateWallXZ(0, -10.0);
     const exteriorLane = new THREE.Mesh(
       new THREE.PlaneGeometry(12, 8),
-      new THREE.MeshBasicMaterial({ color: 0x0d1f30, transparent: true, opacity: 0.35, wireframe: true })
+      new THREE.MeshToonMaterial({ color: 0x143245, transparent: true, opacity: 0.66 })
     );
     exteriorLane.rotation.set(-Math.PI / 2, wallAngle, 0);
     exteriorLane.position.set(exteriorCenter.x, 0.02, exteriorCenter.z);
@@ -1201,15 +1322,16 @@
 
     const exteriorLand = new THREE.Mesh(
       new THREE.PlaneGeometry(18, 11),
-      new THREE.MeshBasicMaterial({ color: 0x103025, transparent: true, opacity: 0.35 })
+      new THREE.MeshToonMaterial({ color: 0x2f7448, transparent: true, opacity: 0.7 })
     );
-    exteriorLand.rotation.set(-Math.PI / 2, wallAngle, 0);
-    exteriorLand.position.set(exteriorCenter.x, -0.005, exteriorCenter.z - 0.7);
+    // Keep landscape plane world-aligned so it reads as a horizontal ground slab.
+    exteriorLand.rotation.set(-Math.PI / 2, 0, 0);
+    exteriorLand.position.set(0, -0.005, -10.7);
     house.add(exteriorLand);
 
     const exteriorRoad = new THREE.Mesh(
       new THREE.PlaneGeometry(12, 2.6),
-      new THREE.MeshBasicMaterial({ color: 0x1f2631, transparent: true, opacity: 0.66 })
+      new THREE.MeshToonMaterial({ color: 0x515862, transparent: true, opacity: 0.93 })
     );
     exteriorRoad.rotation.set(-Math.PI / 2, wallAngle, 0);
     exteriorRoad.position.set(exteriorCenter.x, 0.01, exteriorCenter.z - 0.5);
@@ -1217,7 +1339,7 @@
 
     const laneStripe = new THREE.Mesh(
       new THREE.PlaneGeometry(9.2, 0.05),
-      new THREE.MeshBasicMaterial({ color: 0xf5f7b8, transparent: true, opacity: 0.8 })
+      new THREE.MeshToonMaterial({ color: 0xf9f0aa, transparent: true, opacity: 0.9 })
     );
     laneStripe.rotation.set(-Math.PI / 2, wallAngle, 0);
     laneStripe.position.set(exteriorCenter.x, 0.015, exteriorCenter.z - 0.5);
@@ -1226,6 +1348,9 @@
     const cartoonDecor = new THREE.Group();
     scene.add(cartoonDecor);
 
+    const streetProps = new THREE.Group();
+    scene.add(streetProps);
+
     const placeOnExterior = (x, z, y = 0.02) => {
       const p = rotateWallXZ(x, z);
       return new THREE.Vector3(p.x, y, p.z);
@@ -1233,11 +1358,68 @@
 
     const pathGlow = new THREE.Mesh(
       new THREE.PlaneGeometry(12, 3.4),
-      new THREE.MeshBasicMaterial({ color: 0x6fe2ff, transparent: true, opacity: 0.12 })
+      new THREE.MeshToonMaterial({ color: 0x9be6ff, transparent: true, opacity: 0.09 })
     );
     pathGlow.rotation.set(-Math.PI / 2, wallAngle, 0);
     pathGlow.position.copy(placeOnExterior(0, -9.8, 0.012));
     cartoonDecor.add(pathGlow);
+
+    const lampHeads = [];
+    const makeLampPost = (x, z) => {
+      const post = new THREE.Group();
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.045, 0.05, 1.2, 10),
+        new THREE.MeshToonMaterial({ color: 0x566b82, transparent: true, opacity: 0.95 })
+      );
+      pole.position.y = 0.61;
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.09, 12, 10),
+        new THREE.MeshToonMaterial({ color: 0xc6f4ff, transparent: true, opacity: 0.2 })
+      );
+      head.position.y = 1.27;
+      const halo = new THREE.Mesh(
+        new THREE.CircleGeometry(0.28, 18),
+        new THREE.MeshBasicMaterial({ color: 0x92dfff, transparent: true, opacity: 0.08, depthWrite: false })
+      );
+      halo.rotation.x = -Math.PI / 2;
+      halo.position.y = 0.03;
+      post.add(pole, head, halo);
+      post.position.copy(placeOnExterior(x, z));
+      lampHeads.push(head);
+      return post;
+    };
+    streetProps.add(makeLampPost(-4.1, -8.5), makeLampPost(4.0, -8.5));
+
+    const bench = new THREE.Group();
+    const benchMat = new THREE.MeshToonMaterial({ color: 0x6d5135, transparent: true, opacity: 0.95 });
+    const benchTop = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.06, 0.28), benchMat);
+    benchTop.position.y = 0.34;
+    const benchBack = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.2, 0.06), benchMat);
+    benchBack.position.set(0, 0.5, -0.11);
+    const leg1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 0.06), benchMat);
+    const leg2 = leg1.clone();
+    leg1.position.set(-0.4, 0.15, 0.1);
+    leg2.position.set(0.4, 0.15, 0.1);
+    bench.add(benchTop, benchBack, leg1, leg2);
+    bench.position.copy(placeOnExterior(0.0, -8.6, 0.03));
+    bench.rotation.y = wallAngle + Math.PI * 0.5;
+    streetProps.add(bench);
+
+    const cautionSign = new THREE.Group();
+    const signPost = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.03, 0.8, 8),
+      new THREE.MeshToonMaterial({ color: 0x647589, transparent: true, opacity: 0.95 })
+    );
+    signPost.position.y = 0.42;
+    const signFace = new THREE.Mesh(
+      new THREE.BoxGeometry(0.38, 0.22, 0.04),
+      new THREE.MeshToonMaterial({ color: 0xf9ce55, transparent: true, opacity: 0.95 })
+    );
+    signFace.position.y = 0.77;
+    cautionSign.add(signPost, signFace);
+    cautionSign.position.copy(placeOnExterior(2.7, -8.1, 0.02));
+    cautionSign.rotation.y = wallAngle;
+    streetProps.add(cautionSign);
 
     const hillLeft = new THREE.Mesh(
       new THREE.SphereGeometry(1.8, 14, 12),
@@ -1335,6 +1517,22 @@
     cloudGroup.add(cloudA, cloudB);
     cartoonDecor.add(cloudGroup);
 
+    const starsGroup = new THREE.Group();
+    for (let i = 0; i < 80; i++) {
+      const star = new THREE.Mesh(
+        new THREE.SphereGeometry(0.03 + Math.random() * 0.025, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0xeaf6ff, transparent: true, opacity: 0.7 })
+      );
+      star.position.set(
+        -10 + Math.random() * 20,
+        roomHeight + 2.5 + Math.random() * 7,
+        -17 + Math.random() * 12
+      );
+      starsGroup.add(star);
+    }
+    starsGroup.visible = false;
+    cartoonDecor.add(starsGroup);
+
     const perimeterCenter = rotateWallXZ(0, -6.0);
     const perimeterMark = new THREE.Mesh(
       new THREE.BoxGeometry(12, 0.02, 0.12),
@@ -1346,21 +1544,35 @@
 
     const upperHeight = 6.0;
     const totalHeight = roomHeight + upperHeight;
-    const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x8ccfff, transparent: true, opacity: 0.14, wireframe: true });
+    const wallMaterial = new THREE.MeshToonMaterial({ color: 0x78bde6, transparent: true, opacity: 0.22 });
     const roomShell = new THREE.Mesh(new THREE.BoxGeometry(12, roomHeight, 12), wallMaterial);
     roomShell.position.y = roomHeight / 2;
     house.add(roomShell);
 
+    const roomEdges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(roomShell.geometry),
+      new THREE.LineBasicMaterial({ color: 0xb9e7ff, transparent: true, opacity: 0.75 })
+    );
+    roomEdges.position.copy(roomShell.position);
+    house.add(roomEdges);
+
     const secondFloorShell = new THREE.Mesh(
       new THREE.BoxGeometry(12, upperHeight, 12),
-      new THREE.MeshBasicMaterial({ color: 0x96bfff, transparent: true, opacity: 0.16, wireframe: true })
+      new THREE.MeshToonMaterial({ color: 0x93baf0, transparent: true, opacity: 0.24 })
     );
     secondFloorShell.position.y = roomHeight + upperHeight / 2;
     house.add(secondFloorShell);
 
+    const secondEdges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(secondFloorShell.geometry),
+      new THREE.LineBasicMaterial({ color: 0xc8deff, transparent: true, opacity: 0.72 })
+    );
+    secondEdges.position.copy(secondFloorShell.position);
+    house.add(secondEdges);
+
     const windowWallGlow = new THREE.Mesh(
       new THREE.PlaneGeometry(12.1, roomHeight + 0.25),
-      new THREE.MeshBasicMaterial({ color: 0x6ed0ff, transparent: true, opacity: 0.14, side: THREE.DoubleSide })
+      new THREE.MeshToonMaterial({ color: 0x7cd4ff, transparent: true, opacity: 0.12, side: THREE.DoubleSide })
     );
     const glowPos = rotateWallXZ(0, -5.94);
     windowWallGlow.position.set(glowPos.x, (roomHeight + 0.125) / 2, glowPos.z);
@@ -1396,7 +1608,7 @@
 
     const secondFloorPlate = new THREE.Mesh(
       new THREE.PlaneGeometry(12, 12),
-      new THREE.MeshBasicMaterial({ color: 0x7baeff, transparent: true, opacity: 0.3, wireframe: true })
+      new THREE.MeshToonMaterial({ color: 0x6fa2f3, transparent: true, opacity: 0.22 })
     );
     secondFloorPlate.rotation.x = -Math.PI / 2;
     secondFloorPlate.position.y = roomHeight + 0.02;
@@ -1404,7 +1616,7 @@
 
     const roofPlate = new THREE.Mesh(
       new THREE.PlaneGeometry(12, 12),
-      new THREE.MeshBasicMaterial({ color: 0x9fd1ff, transparent: true, opacity: 0.26, wireframe: true })
+      new THREE.MeshToonMaterial({ color: 0x9ecfff, transparent: true, opacity: 0.32 })
     );
     roofPlate.rotation.x = -Math.PI / 2;
     roofPlate.position.y = totalHeight;
@@ -1502,54 +1714,71 @@
     const laserB = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), laserMatB);
     scene.add(laserA, laserB);
 
-    const trackedAvatar = new THREE.Group();
-    const avatarBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.18, 0.2, 0.58, 12),
-      new THREE.MeshBasicMaterial({ color: 0xff9d66, transparent: true, opacity: 0.95 })
-    );
-    avatarBody.position.y = 0.55;
-    const avatarHead = new THREE.Mesh(
-      new THREE.SphereGeometry(0.16, 14, 12),
-      new THREE.MeshBasicMaterial({ color: 0xffd5be, transparent: true, opacity: 0.95 })
-    );
-    avatarHead.position.y = 1.02;
-    trackedAvatar.add(avatarBody, avatarHead);
+    const createMiniHuman = (outfit = 0xff9d66, skin = 0xffd8c2) => {
+      const human = new THREE.Group();
+      const outfitMat = new THREE.MeshToonMaterial({ color: outfit, transparent: true, opacity: 0.96 });
+      const skinMat = new THREE.MeshToonMaterial({ color: skin, transparent: true, opacity: 0.96 });
+      const legA = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.1), outfitMat);
+      const legB = legA.clone();
+      legA.position.set(-0.06, 0.15, 0);
+      legB.position.set(0.06, 0.15, 0);
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.34, 0.14), outfitMat);
+      torso.position.y = 0.46;
+      const armA = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.26, 0.08), outfitMat);
+      const armB = armA.clone();
+      armA.position.set(-0.19, 0.47, 0);
+      armB.position.set(0.19, 0.47, 0);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), skinMat);
+      head.position.y = 0.72;
+      human.add(legA, legB, torso, armA, armB, head);
+      return human;
+    };
+
+    const trackedAvatar = createMiniHuman(0xff9d66, 0xffd8c2);
     trackedAvatar.visible = false;
     scene.add(trackedAvatar);
 
-    const dogWalker = new THREE.Group();
-    const walkerBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.14, 0.16, 0.44, 10),
-      new THREE.MeshBasicMaterial({ color: 0x85d8ff, transparent: true, opacity: 0.9 })
-    );
-    walkerBody.position.y = 0.48;
-    const walkerHead = new THREE.Mesh(
-      new THREE.SphereGeometry(0.12, 12, 10),
-      new THREE.MeshBasicMaterial({ color: 0xe9f7ff, transparent: true, opacity: 0.9 })
-    );
-    walkerHead.position.y = 0.85;
+    const makeGroundShadow = (radius = 0.3, opacity = 0.18) => {
+      const shadow = new THREE.Mesh(
+        new THREE.CircleGeometry(radius, 22),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity, depthWrite: false })
+      );
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.visible = false;
+      scene.add(shadow);
+      return shadow;
+    };
+    const trackedShadow = makeGroundShadow(0.34, 0.2);
+
+    const dogWalker = createMiniHuman(0x77c7ff, 0xf2e6dd);
     const dogBody = new THREE.Mesh(
       new THREE.BoxGeometry(0.36, 0.18, 0.16),
-      new THREE.MeshBasicMaterial({ color: 0xb09a7d, transparent: true, opacity: 0.95 })
+      new THREE.MeshToonMaterial({ color: 0xb09a7d, transparent: true, opacity: 0.95 })
     );
-    dogBody.position.set(0.28, 0.11, 0);
+    dogBody.position.set(0.32, 0.09, 0);
+    const dogHead = new THREE.Mesh(
+      new THREE.BoxGeometry(0.11, 0.11, 0.11),
+      new THREE.MeshToonMaterial({ color: 0xc6ae8e, transparent: true, opacity: 0.95 })
+    );
+    dogHead.position.set(0.5, 0.12, 0.01);
     const leash = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.52, 0), new THREE.Vector3(0.2, 0.22, 0)]),
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0.08, 0.52, 0), new THREE.Vector3(0.44, 0.18, 0)]),
       new THREE.LineBasicMaterial({ color: 0xf5f5f5, transparent: true, opacity: 0.8 })
     );
-    dogWalker.add(walkerBody, walkerHead, dogBody, leash);
+    dogWalker.add(dogBody, dogHead, leash);
     dogWalker.visible = false;
     scene.add(dogWalker);
+    const dogWalkerShadow = makeGroundShadow(0.4, 0.18);
 
     const golfCart = new THREE.Group();
     const cartBody = new THREE.Mesh(
       new THREE.BoxGeometry(0.75, 0.22, 0.42),
-      new THREE.MeshBasicMaterial({ color: 0x95f0bc, transparent: true, opacity: 0.9 })
+      new THREE.MeshToonMaterial({ color: 0x95f0bc, transparent: true, opacity: 0.95 })
     );
     cartBody.position.y = 0.2;
     const cartRoof = new THREE.Mesh(
       new THREE.BoxGeometry(0.72, 0.05, 0.42),
-      new THREE.MeshBasicMaterial({ color: 0xd9fff0, transparent: true, opacity: 0.9 })
+      new THREE.MeshToonMaterial({ color: 0xd9fff0, transparent: true, opacity: 0.95 })
     );
     cartRoof.position.y = 0.5;
     const wheelMat = new THREE.MeshBasicMaterial({ color: 0x1e2d30 });
@@ -1563,23 +1792,30 @@
     wheel3.position.set(-0.25, 0.07, 0.18);
     wheel4.position.set(0.25, 0.07, 0.18);
     golfCart.add(cartBody, cartRoof, wheel1, wheel2, wheel3, wheel4);
+
+    const cartWindshield = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.48, 0.18),
+      new THREE.MeshToonMaterial({ color: 0xe8f6ff, transparent: true, opacity: 0.45, side: THREE.DoubleSide })
+    );
+    cartWindshield.position.set(0.18, 0.39, 0);
+    cartWindshield.rotation.y = Math.PI / 2;
+    golfCart.add(cartWindshield);
+
+    const seat = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3, 0.12, 0.36),
+      new THREE.MeshToonMaterial({ color: 0x3f506a, transparent: true, opacity: 0.95 })
+    );
+    seat.position.set(-0.02, 0.32, 0);
+    golfCart.add(seat);
     golfCart.visible = false;
     scene.add(golfCart);
+    const golfCartShadow = makeGroundShadow(0.52, 0.2);
 
-    const cartPilot = new THREE.Group();
-    const pilotBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.12, 0.28, 10),
-      new THREE.MeshBasicMaterial({ color: 0xffba88, transparent: true, opacity: 0.95 })
-    );
-    const pilotHead = new THREE.Mesh(
-      new THREE.SphereGeometry(0.08, 10, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffe0c9, transparent: true, opacity: 0.95 })
-    );
-    pilotBody.position.y = 0.38;
-    pilotHead.position.y = 0.58;
-    cartPilot.add(pilotBody, pilotHead);
+    const cartPilot = createMiniHuman(0xf6aa66, 0xffe0c9);
+    cartPilot.scale.set(0.82, 0.82, 0.82);
     cartPilot.visible = false;
     scene.add(cartPilot);
+    const cartPilotShadow = makeGroundShadow(0.24, 0.16);
 
     const cartLaser = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
@@ -1593,6 +1829,9 @@
       scene,
       camera,
       renderer,
+      hemiLight,
+      sunLight,
+      moonLight,
       house,
       sensorA,
       sensorB,
@@ -1614,11 +1853,25 @@
       golfCart,
       cartPilot,
       cartLaser,
+      trackedShadow,
+      dogWalkerShadow,
+      golfCartShadow,
+      cartPilotShadow,
       cartoonDecor,
+      streetProps,
       treeGroup,
       cloudGroup,
+      starsGroup,
       flowerDots,
+      pathGlow,
+      windowWallGlow,
+      lampHeads,
+      perimeterMark,
+      exteriorLand,
+      exteriorRoad,
     };
+
+    applyThreeTheme(state.sceneTheme);
 
     window.addEventListener("resize", () => {
       if (!state.three) return;
@@ -1659,10 +1912,17 @@
       golfCart,
       cartPilot,
       cartLaser,
+      trackedShadow,
+      dogWalkerShadow,
+      golfCartShadow,
+      cartPilotShadow,
       cartoonDecor,
+      streetProps,
       treeGroup,
       cloudGroup,
+      starsGroup,
       flowerDots,
+      lampHeads,
     } = state.three;
     camera.lookAt(0, 4.2, -8.2);
 
@@ -1677,13 +1937,31 @@
         cloud.position.x += Math.sin(nowMs * 0.00012 + idx) * 0.0009;
       });
     }
+    if (starsGroup) {
+      starsGroup.children.forEach((star, idx) => {
+        star.material.opacity = state.sceneTheme === "night"
+          ? 0.48 + Math.sin(nowMs * 0.002 + idx * 0.35) * 0.26
+          : 0.0;
+      });
+    }
     if (flowerDots) {
       flowerDots.children.forEach((dot, idx) => {
         dot.material.opacity = 0.68 + Math.sin(nowMs * 0.002 + idx * 0.45) * 0.12;
       });
     }
+    if (lampHeads?.length) {
+      const lampPulse = state.sceneTheme === "night"
+        ? 0.56 + Math.sin(nowMs * 0.006) * 0.16
+        : 0.2;
+      lampHeads.forEach((lamp) => {
+        lamp.material.opacity = lampPulse;
+      });
+    }
     if (cartoonDecor) {
       cartoonDecor.visible = true;
+    }
+    if (streetProps) {
+      streetProps.visible = true;
     }
 
     const px = (state.point.x / ROOM_W_FT) * 12 - 6;
@@ -1780,8 +2058,18 @@
       const avatarHeight = cls === "TOPSIDE" ? 1.45 : cls === "FLOOR_LEVEL" ? 0.72 : 1.15;
       trackedAvatar.scale.set(1, avatarHeight, 1);
       trackedAvatar.rotation.y = Math.sin(nowMs * 0.0023) * 0.35;
+      const limbSwing = Math.sin(nowMs * 0.008) * 0.14;
+      if (trackedAvatar.children[3]) trackedAvatar.children[3].rotation.x = limbSwing;
+      if (trackedAvatar.children[4]) trackedAvatar.children[4].rotation.x = -limbSwing;
+
+      trackedShadow.visible = true;
+      trackedShadow.position.set(renderState.laser.target.x, 0.028, renderState.laser.target.z);
+      const shadowFade = clamp(1 - renderState.laser.target.y / totalHeight, 0.2, 0.92);
+      trackedShadow.scale.set(1.0 + (1 - state.confidence) * 0.35, 0.8 + (1 - state.confidence) * 0.3, 1);
+      trackedShadow.material.opacity = 0.1 + shadowFade * 0.22;
     } else {
       trackedAvatar.visible = false;
+      trackedShadow.visible = false;
     }
 
     const outsideActive = state.spatialClass === "window_perimeter" || state.spatialClass === "outside";
@@ -1791,6 +2079,11 @@
       golfCart.visible = true;
       dogWalker.position.set(-2.2 + Math.sin(t * 0.65) * 3.2, 0.04, -9.6 + Math.cos(t * 0.6) * 0.6);
       dogWalker.rotation.y = Math.sin(t * 0.35) * 0.4;
+      if (dogWalker.children[3]) dogWalker.children[3].rotation.x = Math.sin(nowMs * 0.007) * 0.16;
+      if (dogWalker.children[4]) dogWalker.children[4].rotation.x = -Math.sin(nowMs * 0.007) * 0.16;
+      dogWalkerShadow.visible = true;
+      dogWalkerShadow.position.set(dogWalker.position.x + 0.06, 0.022, dogWalker.position.z + 0.03);
+      dogWalkerShadow.material.opacity = 0.18;
 
       // Cart traversal sim: slow pass from board A side to board B side.
       const passPhase = (t * 0.045) % 1;
@@ -1798,10 +2091,17 @@
       const passZ = -9.9 + Math.sin(t * 0.4) * 0.35;
       golfCart.position.set(passX, 0.02, passZ);
       golfCart.rotation.y = 0.18 + Math.sin(t * 0.35) * 0.08;
+      golfCartShadow.visible = true;
+      golfCartShadow.position.set(passX, 0.022, passZ);
+      golfCartShadow.scale.set(1.0, 0.7, 1);
+      golfCartShadow.material.opacity = 0.2;
 
       cartPilot.visible = true;
       cartPilot.position.set(passX + 0.08, 0.02, passZ);
       cartPilot.rotation.y = golfCart.rotation.y;
+      cartPilotShadow.visible = true;
+      cartPilotShadow.position.set(passX + 0.08, 0.022, passZ);
+      cartPilotShadow.material.opacity = 0.16;
 
       const dA = sensorA.position.distanceTo(golfCart.position);
       const dB = sensorB.position.distanceTo(golfCart.position);
@@ -1830,6 +2130,9 @@
       cartPilot.visible = false;
       cartLaser.visible = false;
       cartLaser.material.opacity = 0;
+      dogWalkerShadow.visible = false;
+      golfCartShadow.visible = false;
+      cartPilotShadow.visible = false;
     }
     if (summary.id !== "--" && (summary.state !== state.lastTrackState || summary.classification !== state.lastTrackClassification)) {
       const descriptor = classificationDescriptor(summary.classification);
@@ -3086,6 +3389,18 @@
     setUiMode("developer");
   });
 
+  if (sceneThemeBtn) {
+    sceneThemeBtn.addEventListener("click", () => {
+      const next = state.sceneTheme === "day" ? "night" : "day";
+      applyThreeTheme(next);
+      pushEvent(
+        next === "night" ? "NIGHT OPS VISUAL MODE" : "DAYLIGHT VISUAL MODE",
+        performance.now(),
+        "Operator scene style changed"
+      );
+    });
+  }
+
   if (gadgetAgreedBtn && gadgetResponseEl) {
     gadgetAgreedBtn.addEventListener("click", () => {
       gadgetResponseEl.textContent = "Response: acknowledged";
@@ -3130,6 +3445,7 @@
   loadAttempts();
   renderAttemptList();
   initThreeScene();
+  applyThreeTheme(state.sceneTheme);
   connectBridge();
   startCalibration();
   updateModeButtons();

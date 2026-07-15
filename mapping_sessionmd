@@ -1,0 +1,91 @@
+# mapping_sessionmd
+
+Date: 2026-07-14
+Workspace: security_densepose
+
+## Current System State
+- Visual URL: http://127.0.0.1:8765/densepose_web_visual.html
+- Bridge health URL: http://127.0.0.1:8786/health
+- Boards expected: /dev/ttyACM0 (A), /dev/ttyACM1 (B)
+- Launcher: scripts/open_densepose_web_visual.sh
+
+## Implemented Visual Features
+- Bridge-first connect flow for Board A/B buttons.
+- Dual plateau zones (left/right) for board-specific tracking.
+- Small-object pinpoint markers (cat/baby class) and adult proxy behavior.
+- Sliding board distance rulers with live feet estimate.
+- Empty-room calibration flow (4s) with baseline capture.
+- Responsive viewport fixes and auto-scroll to visual area on narrow displays.
+
+## Repo Working Changes (not committed)
+- Modified: densepose_web_visual.html
+- New: python_serial_bridge.py
+- New/updated: scripts/open_densepose_web_visual.sh
+- New: security_densepose.code-workspace
+
+## Calibration Ready Checklist
+1. Start stack:
+   - ./scripts/open_densepose_web_visual.sh
+2. Confirm backend:
+   - curl -fsS http://127.0.0.1:8786/health
+3. Open visual page:
+   - http://127.0.0.1:8765/densepose_web_visual.html
+4. Verify status:
+   - Board A connected
+   - Board B connected
+   - Status shows both connected and live
+5. Calibrate:
+   - Click "Calibrate Empty Room (4s)"
+   - Keep room still during countdown
+6. Validate motion:
+   - Move near Board A then Board B
+   - Check ruler values and object mode updates
+
+## Immediate Next Step
+- Begin empty-room calibration now in the visual page, then run motion verification pass.
+
+## New Footprint Model Updates (2026-07-14)
+- New project visual: `footprint_visual_model/`.
+- Real-time simulation mode upgraded with:
+   - Auto moving target path (continuous motion loop)
+   - Simulation speed control
+   - Noise control
+   - Board spacing control for overlap/butting experiments
+   - Pause/resume simulation control
+- Bridge mode stabilized with:
+   - Distance smoothing + max-step limiter
+   - Lock hysteresis (`LOCK_IN` / `LOCK_OUT`)
+   - Geometric feasibility correction for trilateration inputs
+   - Slider synchronization to corrected model distances
+- Result: improved footprint continuity and reduced radar-like pinging in bridge mode.
+
+## New Model Features Added (2026-07-14, Iteration 2)
+- Wave detection telemetry (rolling motion derivative) shown as `wave` level in state panel.
+- 3D-style tracking box rendered around locked target (confidence-scaled frustum box).
+- Stillness state machine with medium `X` marker when target velocity remains near zero long enough.
+- Attempt Recorder panel added with:
+   - Run ID auto-increment
+   - Result selector (Pass/Fail/Jittery)
+   - Notes field
+   - Save to local persistent store (browser localStorage)
+   - Markdown export (`mapping_session_attempts.md`) for repository handoff
+- Useful validation protocol now supported directly in UI for repeated tuning attempts.
+
+## Monitor-First Upgrade (2026-07-14, Iteration 3)
+- Added dual-persona UI mode switch in `footprint_visual_model/`:
+   - Monitor Mode (default): operator-centric occupancy and event feed.
+   - Developer Mode: full tuning controls, state telemetry, and attempt recorder.
+- Added monitor status block:
+   - Occupancy, Tracking, Movement, Zone, Time in room, Last event.
+- Added rolling security event feed with timestamps:
+   - `ENTRY DETECTED`, `EXIT DETECTED`, `TARGET MOVING`, `TARGET STATIONARY`, zone transition events.
+- Startup behavior switched to bridge-first operational mode:
+   - Default `Mode: bridge`
+   - Auto-connect to local SSE bridge on load
+   - Bridge status visible in monitor panel
+- Added calibration lifecycle events:
+   - `CALIBRATION STARTED`
+   - `CALIBRATION COMPLETE`
+- Canvas rendering in monitor mode now prioritizes room-operator readability:
+   - Footstep-style fading dots instead of debug-style line trail
+   - Room border pulse while a target is actively locked
