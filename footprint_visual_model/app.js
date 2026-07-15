@@ -1196,14 +1196,14 @@
 
     const upperHeight = 6.0;
     const totalHeight = roomHeight + upperHeight;
-    const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x8ccfff, transparent: true, opacity: 0.09, wireframe: true });
+    const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x8ccfff, transparent: true, opacity: 0.14, wireframe: true });
     const roomShell = new THREE.Mesh(new THREE.BoxGeometry(12, roomHeight, 12), wallMaterial);
     roomShell.position.y = roomHeight / 2;
     house.add(roomShell);
 
     const secondFloorShell = new THREE.Mesh(
       new THREE.BoxGeometry(12, upperHeight, 12),
-      new THREE.MeshBasicMaterial({ color: 0x96bfff, transparent: true, opacity: 0.1, wireframe: true })
+      new THREE.MeshBasicMaterial({ color: 0x96bfff, transparent: true, opacity: 0.16, wireframe: true })
     );
     secondFloorShell.position.y = roomHeight + upperHeight / 2;
     house.add(secondFloorShell);
@@ -1246,7 +1246,7 @@
 
     const secondFloorPlate = new THREE.Mesh(
       new THREE.PlaneGeometry(12, 12),
-      new THREE.MeshBasicMaterial({ color: 0x7baeff, transparent: true, opacity: 0.22, wireframe: true })
+      new THREE.MeshBasicMaterial({ color: 0x7baeff, transparent: true, opacity: 0.3, wireframe: true })
     );
     secondFloorPlate.rotation.x = -Math.PI / 2;
     secondFloorPlate.position.y = roomHeight + 0.02;
@@ -1254,7 +1254,7 @@
 
     const roofPlate = new THREE.Mesh(
       new THREE.PlaneGeometry(12, 12),
-      new THREE.MeshBasicMaterial({ color: 0x9fd1ff, transparent: true, opacity: 0.16, wireframe: true })
+      new THREE.MeshBasicMaterial({ color: 0x9fd1ff, transparent: true, opacity: 0.26, wireframe: true })
     );
     roofPlate.rotation.x = -Math.PI / 2;
     roofPlate.position.y = totalHeight;
@@ -1304,6 +1304,8 @@
     confirmBubbleA.position.copy(sensorA.position);
     confirmBubbleB.position.copy(sensorB.position);
     house.add(confirmBubbleA, confirmBubbleB);
+    confirmBubbleA.visible = false;
+    confirmBubbleB.visible = false;
 
     const sweepMatA = new THREE.MeshBasicMaterial({ color: 0x66f3ff, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
     const sweepMatB = new THREE.MeshBasicMaterial({ color: 0x66f3ff, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
@@ -1314,6 +1316,8 @@
     sweepA.position.copy(sensorA.position);
     sweepB.position.copy(sensorB.position);
     house.add(sweepA, sweepB);
+    sweepA.visible = false;
+    sweepB.visible = false;
 
     const groundProjectionRadius = Math.sqrt(Math.max(0.1, CONFIRM_RADIUS_FT * CONFIRM_RADIUS_FT - roomHeight * roomHeight));
     const longRangeRingA = new THREE.Mesh(
@@ -1329,6 +1333,8 @@
     longRangeRingA.position.set(sensorA.position.x, 0.03, sensorA.position.z);
     longRangeRingB.position.set(sensorB.position.x, 0.03, sensorB.position.z);
     house.add(longRangeRingA, longRangeRingB);
+    longRangeRingA.visible = false;
+    longRangeRingB.visible = false;
 
     const spectrumBubbleMatA = new THREE.MeshBasicMaterial({ color: 0x50b8ff, transparent: true, opacity: 0.0, wireframe: true });
     const spectrumBubbleMatB = new THREE.MeshBasicMaterial({ color: 0xffa94d, transparent: true, opacity: 0.0, wireframe: true });
@@ -1337,6 +1343,8 @@
     spectrumBubbleA.position.copy(sensorA.position);
     spectrumBubbleB.position.copy(sensorB.position);
     house.add(spectrumBubbleA, spectrumBubbleB);
+    spectrumBubbleA.visible = false;
+    spectrumBubbleB.visible = false;
 
     const laserMatA = new THREE.LineBasicMaterial({ color: 0xff2b2b, transparent: true, opacity: 0.0 });
     const laserMatB = new THREE.LineBasicMaterial({ color: 0xff2b2b, transparent: true, opacity: 0.0 });
@@ -1344,26 +1352,95 @@
     const laserB = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), laserMatB);
     scene.add(laserA, laserB);
 
-    const trampoline = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.7, 1.7, 0.35, 24),
-      new THREE.MeshBasicMaterial({ color: 0xffad45, transparent: true, opacity: 0.18, wireframe: true })
+    const trackedAvatar = new THREE.Group();
+    const avatarBody = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.2, 0.58, 12),
+      new THREE.MeshBasicMaterial({ color: 0xff9d66, transparent: true, opacity: 0.95 })
     );
-    trampoline.position.set(0, 0.18, 1.4);
-    house.add(trampoline);
-
-    const tv = new THREE.Mesh(
-      new THREE.BoxGeometry(1.8, 1.1, 0.16),
-      new THREE.MeshBasicMaterial({ color: 0xbdd4ff, transparent: true, opacity: 0.18, wireframe: true })
+    avatarBody.position.y = 0.55;
+    const avatarHead = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 14, 12),
+      new THREE.MeshBasicMaterial({ color: 0xffd5be, transparent: true, opacity: 0.95 })
     );
-    tv.position.set(4.7, 1.0, -4.6);
-    house.add(tv);
+    avatarHead.position.y = 1.02;
+    trackedAvatar.add(avatarBody, avatarHead);
+    trackedAvatar.visible = false;
+    scene.add(trackedAvatar);
 
-    const helper = new THREE.AxesHelper(1.8);
-    helper.position.set(0, 0.05, 0);
-    house.add(helper);
+    const dogWalker = new THREE.Group();
+    const walkerBody = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.14, 0.16, 0.44, 10),
+      new THREE.MeshBasicMaterial({ color: 0x85d8ff, transparent: true, opacity: 0.9 })
+    );
+    walkerBody.position.y = 0.48;
+    const walkerHead = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12, 12, 10),
+      new THREE.MeshBasicMaterial({ color: 0xe9f7ff, transparent: true, opacity: 0.9 })
+    );
+    walkerHead.position.y = 0.85;
+    const dogBody = new THREE.Mesh(
+      new THREE.BoxGeometry(0.36, 0.18, 0.16),
+      new THREE.MeshBasicMaterial({ color: 0xb09a7d, transparent: true, opacity: 0.95 })
+    );
+    dogBody.position.set(0.28, 0.11, 0);
+    const leash = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.52, 0), new THREE.Vector3(0.2, 0.22, 0)]),
+      new THREE.LineBasicMaterial({ color: 0xf5f5f5, transparent: true, opacity: 0.8 })
+    );
+    dogWalker.add(walkerBody, walkerHead, dogBody, leash);
+    dogWalker.visible = false;
+    scene.add(dogWalker);
+
+    const golfCart = new THREE.Group();
+    const cartBody = new THREE.Mesh(
+      new THREE.BoxGeometry(0.75, 0.22, 0.42),
+      new THREE.MeshBasicMaterial({ color: 0x95f0bc, transparent: true, opacity: 0.9 })
+    );
+    cartBody.position.y = 0.2;
+    const cartRoof = new THREE.Mesh(
+      new THREE.BoxGeometry(0.72, 0.05, 0.42),
+      new THREE.MeshBasicMaterial({ color: 0xd9fff0, transparent: true, opacity: 0.9 })
+    );
+    cartRoof.position.y = 0.5;
+    const wheelMat = new THREE.MeshBasicMaterial({ color: 0x1e2d30 });
+    const wheel1 = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 10), wheelMat);
+    const wheel2 = wheel1.clone();
+    const wheel3 = wheel1.clone();
+    const wheel4 = wheel1.clone();
+    [wheel1, wheel2, wheel3, wheel4].forEach((w) => { w.rotation.z = Math.PI / 2; });
+    wheel1.position.set(-0.25, 0.07, -0.18);
+    wheel2.position.set(0.25, 0.07, -0.18);
+    wheel3.position.set(-0.25, 0.07, 0.18);
+    wheel4.position.set(0.25, 0.07, 0.18);
+    golfCart.add(cartBody, cartRoof, wheel1, wheel2, wheel3, wheel4);
+    golfCart.visible = false;
+    scene.add(golfCart);
 
     const trackManager = new TrackManager({ scene, sensorA, sensorB, roomHeight });
-    state.three = { scene, camera, renderer, house, sensorA, sensorB, roomHeight, totalHeight, trackManager, confirmBubbleA, confirmBubbleB, spectrumBubbleA, spectrumBubbleB, laserA, laserB, sweepA, sweepB, longRangeRingA, longRangeRingB };
+    state.three = {
+      scene,
+      camera,
+      renderer,
+      house,
+      sensorA,
+      sensorB,
+      roomHeight,
+      totalHeight,
+      trackManager,
+      confirmBubbleA,
+      confirmBubbleB,
+      spectrumBubbleA,
+      spectrumBubbleB,
+      laserA,
+      laserB,
+      sweepA,
+      sweepB,
+      longRangeRingA,
+      longRangeRingB,
+      trackedAvatar,
+      dogWalker,
+      golfCart,
+    };
 
     window.addEventListener("resize", () => {
       if (!state.three) return;
@@ -1399,6 +1476,9 @@
       sweepB,
       longRangeRingA,
       longRangeRingB,
+      trackedAvatar,
+      dogWalker,
+      golfCart,
     } = state.three;
     camera.lookAt(0, 4.2, -8.2);
 
@@ -1454,18 +1534,15 @@
     const renderState = trackManager.getRenderState();
     state.trackDiagnostics = renderState;
 
-    spectrumBubbleA.scale.set(renderState.sensorA.bubbleScale, renderState.sensorA.bubbleScale, renderState.sensorA.bubbleScale);
-    spectrumBubbleB.scale.set(renderState.sensorB.bubbleScale, renderState.sensorB.bubbleScale, renderState.sensorB.bubbleScale);
-    spectrumBubbleA.material.opacity = renderState.sensorA.bubbleOpacity;
-    spectrumBubbleB.material.opacity = renderState.sensorB.bubbleOpacity;
-    confirmBubbleA.material.opacity = 0.04;
-    confirmBubbleB.material.opacity = 0.04;
-    sweepA.rotation.z = nowMs * 0.0024;
-    sweepB.rotation.z = -nowMs * 0.0021;
-    sweepA.material.opacity = clamp(0.08 + renderState.sensorA.signal * 0.22, 0.08, 0.42);
-    sweepB.material.opacity = clamp(0.08 + renderState.sensorB.signal * 0.22, 0.08, 0.42);
-    longRangeRingA.material.opacity = clamp(0.04 + renderState.sensorA.signal * 0.05, 0.02, 0.14);
-    longRangeRingB.material.opacity = clamp(0.04 + renderState.sensorB.signal * 0.05, 0.02, 0.14);
+    // Research overlays disabled in production monitoring mode.
+    spectrumBubbleA.visible = false;
+    spectrumBubbleB.visible = false;
+    confirmBubbleA.visible = false;
+    confirmBubbleB.visible = false;
+    sweepA.visible = false;
+    sweepB.visible = false;
+    longRangeRingA.visible = false;
+    longRangeRingB.visible = false;
     laserA.material.color.setHex(renderState.laser.color);
     laserB.material.color.setHex(renderState.laser.color);
 
@@ -1491,14 +1568,29 @@
       laserB.material.opacity = 0;
     }
 
-    if (renderState.primaryTrack) {
-      const lockColor = new THREE.Color(renderState.laser.color);
-      confirmBubbleA.material.color.copy(lockColor);
-      confirmBubbleB.material.color.copy(lockColor);
-      if (renderState.primaryTrack.classification === "INTERIOR") {
-        confirmBubbleA.material.opacity = 0.08;
-        confirmBubbleB.material.opacity = 0.08;
-      }
+    if (renderState.laser.target && renderState.primaryTrack) {
+      trackedAvatar.visible = true;
+      trackedAvatar.position.copy(renderState.laser.target);
+      const cls = String(renderState.primaryTrack.classification || "UNKNOWN").toUpperCase();
+      const avatarHeight = cls === "TOPSIDE" ? 1.45 : cls === "FLOOR_LEVEL" ? 0.72 : 1.15;
+      trackedAvatar.scale.set(1, avatarHeight, 1);
+      trackedAvatar.rotation.y = Math.sin(nowMs * 0.0023) * 0.35;
+    } else {
+      trackedAvatar.visible = false;
+    }
+
+    const outsideActive = state.spatialClass === "window_perimeter" || state.spatialClass === "outside";
+    if (outsideActive) {
+      const t = nowMs * 0.001;
+      dogWalker.visible = true;
+      golfCart.visible = true;
+      dogWalker.position.set(-2.2 + Math.sin(t * 0.65) * 3.2, 0.04, -9.6 + Math.cos(t * 0.6) * 0.6);
+      dogWalker.rotation.y = Math.sin(t * 0.35) * 0.4;
+      golfCart.position.set(2.6 + Math.sin(t * 0.4) * 2.1, 0.02, -10.1 + Math.cos(t * 0.5) * 0.45);
+      golfCart.rotation.y = 0.22 + Math.sin(t * 0.4) * 0.12;
+    } else {
+      dogWalker.visible = false;
+      golfCart.visible = false;
     }
     if (summary.id !== "--" && (summary.state !== state.lastTrackState || summary.classification !== state.lastTrackClassification)) {
       const descriptor = classificationDescriptor(summary.classification);
@@ -1511,7 +1603,7 @@
       );
       state.lastTrackState = summary.state;
       state.lastTrackClassification = summary.classification;
-      if (summary.state === "TRACKING" || summary.state === "ANCHORED" || summary.state === "DIRECT_LOCK") {
+      if (summary.state === "TRACKING" || summary.state === "ANCHORED" || summary.state === "DIRECT_LOCK" || summary.state === "FUSION_LOCK") {
         showConfirmationBanner({
           sensorId: renderState.primaryTrack?.lockSource || (renderState.sensorA.locked && renderState.sensorB.locked ? "ESP32-A + ESP32-B" : renderState.sensorA.locked ? "ESP32-A" : renderState.sensorB.locked ? "ESP32-B" : "UNKNOWN"),
           distance: renderState.sensorA.locked && Number.isFinite(renderState.sensorA.distanceFt)
@@ -1608,30 +1700,7 @@
     ctx.fillText("SENSOR A", left + 18, roofTop + 18);
     ctx.fillText("SENSOR B", right - 78, roofTop + 18);
 
-    // Furniture anchors.
-    const trampoline = roomToScene({ x: 6.0, y: 3.2 });
-    const tv = roomToScene({ x: 10.0, y: 8.2 });
-    ctx.strokeStyle = "rgba(255, 183, 74, 0.65)";
-    ctx.fillStyle = "rgba(255, 183, 74, 0.12)";
-    ctx.beginPath();
-    ctx.ellipse(cx + trampoline.x, cy + trampoline.y, 82, 42, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = "rgba(176, 206, 255, 0.14)";
-    ctx.strokeStyle = "rgba(176, 206, 255, 0.6)";
-    ctx.strokeRect(cx + tv.x - 45, cy + tv.y - 28, 90, 56);
-    ctx.fillRect(cx + tv.x - 45, cy + tv.y - 28, 90, 56);
-
-    ctx.fillStyle = "rgba(210,230,255,0.7)";
-    ctx.fillText("TRAMPOLINE", cx + trampoline.x - 56, cy + trampoline.y + 64);
-    ctx.fillText("TV", cx + tv.x - 10, cy + tv.y + 42);
-
-    // Camera tag.
-    ctx.fillStyle = "rgba(255,255,255,0.22)";
-    ctx.beginPath();
-    ctx.arc(cx - 168, cy - 128, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillText("COMMAND VIEW", cx - 198, cy - 140);
+    // Production skeleton-only view (no furniture clutter).
 
     return { left, top, right, bottom, roofTop, cx, cy, roomW, roomH };
   }
