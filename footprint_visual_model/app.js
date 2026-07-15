@@ -94,8 +94,10 @@
   const WORLD_MAX_X_FT = 12;
   const WORLD_MIN_Y_FT = 0;
   const WORLD_MAX_Y_FT = 14;
-  const SENSOR_RANGE_FT = 15;
-  const WINDOW_WALL_Y_FT = 11.6;
+  const OPERATIONAL_RADIUS_FT = 15;
+  const EXTENDED_MONITOR_RADIUS_FT = 25;
+  const SENSOR_RANGE_FT = EXTENDED_MONITOR_RADIUS_FT;
+  const WINDOW_WALL_Y_FT = ROOM_H_FT;
   const WALL_MARGIN_FT = 0.8;
   const MAX_TRAIL = 60;
   const GHOST_MS = 900;
@@ -114,7 +116,7 @@
   const TOPSIDE_NEAR_FT = 2.2;
   const CONFIDENCE_RING_MIN = 0.34;
   const CONFIDENCE_RING_MAX = 0.86;
-  const CONFIRM_RADIUS_FT = 15.0;
+  const CONFIRM_RADIUS_FT = OPERATIONAL_RADIUS_FT;
   const DIRECT_LOCK_SIGNAL = 0.95;
   const DIRECT_LOCK_RANGE_FT = 1.8;
   const DIRECT_LOCK_HOLD_MS = 1200;
@@ -1173,10 +1175,11 @@
     } = state.three;
 
     if (nextTheme === "day") {
-      scene.background.set(0x87b7dd);
-      scene.fog.color.set(0x87b7dd);
-      scene.fog.near = 24;
-      scene.fog.far = 72;
+      scene.background.set(0x7eaed1);
+      scene.fog.color.set(0x8ab9da);
+      // Keep daytime depth cues, but avoid washing out the room shell.
+      scene.fog.near = 44;
+      scene.fog.far = 128;
       hemiLight.intensity = 1.05;
       hemiLight.color.set(0xc5e2ff);
       hemiLight.groundColor.set(0x35533d);
@@ -1261,8 +1264,8 @@
     document.body.classList.add("three-mode");
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87b7dd);
-    scene.fog = new THREE.Fog(0x87b7dd, 24, 72);
+    scene.background = new THREE.Color(0x7eaed1);
+    scene.fog = new THREE.Fog(0x8ab9da, 44, 128);
 
     const hemiLight = new THREE.HemisphereLight(0xc5e2ff, 0x35533d, 1.05);
     scene.add(hemiLight);
@@ -1653,21 +1656,31 @@
     const sensorMaterialB = new THREE.MeshBasicMaterial({ color: 0xffad45 });
     const sensorA = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), sensorMaterialA);
     const sensorB = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), sensorMaterialB);
-    const sensorAPos = rotateWallXZ(-5.4, -5.8);
-    const sensorBPos = rotateWallXZ(5.4, -5.8);
-    sensorA.position.set(sensorAPos.x, roomHeight - 0.2, sensorAPos.z);
-    sensorB.position.set(sensorBPos.x, roomHeight - 0.2, sensorBPos.z);
+    const sensorAPos = rotateWallXZ(-5.95, -5.92);
+    const sensorBPos = rotateWallXZ(5.95, -5.92);
+    sensorA.position.set(sensorAPos.x, roomHeight - 0.12, sensorAPos.z);
+    sensorB.position.set(sensorBPos.x, roomHeight - 0.12, sensorBPos.z);
     house.add(sensorA, sensorB);
 
-    const confirmBubbleMatA = new THREE.MeshBasicMaterial({ color: 0xff5c5c, transparent: true, opacity: 0.065, wireframe: true });
-    const confirmBubbleMatB = new THREE.MeshBasicMaterial({ color: 0xff5c5c, transparent: true, opacity: 0.065, wireframe: true });
-    const confirmBubbleA = new THREE.Mesh(new THREE.SphereGeometry(CONFIRM_RADIUS_FT + 2.5, 36, 24), confirmBubbleMatA);
-    const confirmBubbleB = new THREE.Mesh(new THREE.SphereGeometry(CONFIRM_RADIUS_FT + 2.5, 36, 24), confirmBubbleMatB);
+    const confirmBubbleMatA = new THREE.MeshBasicMaterial({ color: 0x66e0ff, transparent: true, opacity: 0.17, wireframe: true });
+    const confirmBubbleMatB = new THREE.MeshBasicMaterial({ color: 0xffc26e, transparent: true, opacity: 0.17, wireframe: true });
+    const confirmBubbleA = new THREE.Mesh(new THREE.SphereGeometry(CONFIRM_RADIUS_FT, 40, 28), confirmBubbleMatA);
+    const confirmBubbleB = new THREE.Mesh(new THREE.SphereGeometry(CONFIRM_RADIUS_FT, 40, 28), confirmBubbleMatB);
     confirmBubbleA.position.copy(sensorA.position);
     confirmBubbleB.position.copy(sensorB.position);
     house.add(confirmBubbleA, confirmBubbleB);
-    confirmBubbleA.visible = false;
-    confirmBubbleB.visible = false;
+    confirmBubbleA.visible = true;
+    confirmBubbleB.visible = true;
+
+    const extendedBubbleMatA = new THREE.MeshBasicMaterial({ color: 0x5eb8ff, transparent: true, opacity: 0.085, wireframe: true });
+    const extendedBubbleMatB = new THREE.MeshBasicMaterial({ color: 0xff9a5a, transparent: true, opacity: 0.085, wireframe: true });
+    const extendedBubbleA = new THREE.Mesh(new THREE.SphereGeometry(EXTENDED_MONITOR_RADIUS_FT, 48, 30), extendedBubbleMatA);
+    const extendedBubbleB = new THREE.Mesh(new THREE.SphereGeometry(EXTENDED_MONITOR_RADIUS_FT, 48, 30), extendedBubbleMatB);
+    extendedBubbleA.position.copy(sensorA.position);
+    extendedBubbleB.position.copy(sensorB.position);
+    house.add(extendedBubbleA, extendedBubbleB);
+    extendedBubbleA.visible = true;
+    extendedBubbleB.visible = true;
 
     const sweepMatA = new THREE.MeshBasicMaterial({ color: 0x66f3ff, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
     const sweepMatB = new THREE.MeshBasicMaterial({ color: 0x66f3ff, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
@@ -1681,7 +1694,7 @@
     sweepA.visible = false;
     sweepB.visible = false;
 
-    const groundProjectionRadius = Math.sqrt(Math.max(0.1, CONFIRM_RADIUS_FT * CONFIRM_RADIUS_FT - roomHeight * roomHeight));
+    const groundProjectionRadius = Math.sqrt(Math.max(0.1, EXTENDED_MONITOR_RADIUS_FT * EXTENDED_MONITOR_RADIUS_FT - roomHeight * roomHeight));
     const longRangeRingA = new THREE.Mesh(
       new THREE.RingGeometry(Math.max(0.15, groundProjectionRadius - 0.16), groundProjectionRadius + 0.16, 96),
       new THREE.MeshBasicMaterial({ color: 0x8ad7ff, transparent: true, opacity: 0.08, side: THREE.DoubleSide })
@@ -1695,8 +1708,8 @@
     longRangeRingA.position.set(sensorA.position.x, 0.03, sensorA.position.z);
     longRangeRingB.position.set(sensorB.position.x, 0.03, sensorB.position.z);
     house.add(longRangeRingA, longRangeRingB);
-    longRangeRingA.visible = false;
-    longRangeRingB.visible = false;
+    longRangeRingA.visible = true;
+    longRangeRingB.visible = true;
 
     const spectrumBubbleMatA = new THREE.MeshBasicMaterial({ color: 0x50b8ff, transparent: true, opacity: 0.0, wireframe: true });
     const spectrumBubbleMatB = new THREE.MeshBasicMaterial({ color: 0xffa94d, transparent: true, opacity: 0.0, wireframe: true });
@@ -1840,6 +1853,8 @@
       trackManager,
       confirmBubbleA,
       confirmBubbleB,
+      extendedBubbleA,
+      extendedBubbleB,
       spectrumBubbleA,
       spectrumBubbleB,
       laserA,
@@ -1899,6 +1914,8 @@
       trackManager,
       confirmBubbleA,
       confirmBubbleB,
+      extendedBubbleA,
+      extendedBubbleB,
       spectrumBubbleA,
       spectrumBubbleB,
       laserA,
@@ -2016,15 +2033,24 @@
     const renderState = trackManager.getRenderState();
     state.trackDiagnostics = renderState;
 
-    // Research overlays disabled in production monitoring mode.
+    // Keep permanent operational and extended range overlays visible.
     spectrumBubbleA.visible = false;
     spectrumBubbleB.visible = false;
-    confirmBubbleA.visible = false;
-    confirmBubbleB.visible = false;
+    confirmBubbleA.visible = true;
+    confirmBubbleB.visible = true;
+    extendedBubbleA.visible = true;
+    extendedBubbleB.visible = true;
     sweepA.visible = false;
     sweepB.visible = false;
-    longRangeRingA.visible = false;
-    longRangeRingB.visible = false;
+    longRangeRingA.visible = true;
+    longRangeRingB.visible = true;
+    const rangePulse = 0.85 + Math.sin(nowMs * 0.0018) * 0.12;
+    confirmBubbleA.material.opacity = 0.14 * rangePulse;
+    confirmBubbleB.material.opacity = 0.14 * rangePulse;
+    extendedBubbleA.material.opacity = 0.07 * rangePulse;
+    extendedBubbleB.material.opacity = 0.07 * rangePulse;
+    longRangeRingA.material.opacity = 0.11 * rangePulse;
+    longRangeRingB.material.opacity = 0.11 * rangePulse;
     const quadrantColor = quadrantLaserColor(state.point, state.spatialClass);
     laserA.material.color.setHex(quadrantColor);
     laserB.material.color.setHex(quadrantColor);
@@ -2226,21 +2252,21 @@
     ctx.lineTo(windowRight, top + 2);
     ctx.stroke();
 
-    // Crown molding / sensor plane.
-    const sensorA = roomToScene({ x: 1.2, y: ROOM_H_FT });
-    const sensorB = roomToScene({ x: 10.8, y: ROOM_H_FT });
+    // Crown molding / sensor plane at window-wall top corners.
+    const sensorA = roomToScene({ x: boardA.x, y: boardA.y });
+    const sensorB = roomToScene({ x: boardB.x, y: boardB.y });
     ctx.fillStyle = "rgba(255, 221, 120, 0.9)";
     ctx.beginPath();
-    ctx.arc(left + 45, roofTop + 24, 6, 0, Math.PI * 2);
+    ctx.arc(scene.cx + sensorA.x, scene.cy + sensorA.y - 4, 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(right - 45, roofTop + 24, 6, 0, Math.PI * 2);
+    ctx.arc(scene.cx + sensorB.x, scene.cy + sensorB.y - 4, 6, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = "rgba(220,235,255,0.72)";
     ctx.font = "12px sans-serif";
-    ctx.fillText("SENSOR A", left + 18, roofTop + 18);
-    ctx.fillText("SENSOR B", right - 78, roofTop + 18);
+    ctx.fillText("SENSOR A", scene.cx + sensorA.x - 30, scene.cy + sensorA.y - 12);
+    ctx.fillText("SENSOR B", scene.cx + sensorB.x - 30, scene.cy + sensorB.y - 12);
 
     // Production skeleton-only view (no furniture clutter).
 

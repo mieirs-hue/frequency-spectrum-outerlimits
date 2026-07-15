@@ -1,7 +1,8 @@
-# mapping_sessionmd
+# Mapping Session Archive
 
 Date: 2026-07-14
 Workspace: security_densepose
+Status: Archived reference snapshot
 
 ## Current System State
 - Visual URL: http://127.0.0.1:8765/densepose_web_visual.html
@@ -17,11 +18,9 @@ Workspace: security_densepose
 - Empty-room calibration flow (4s) with baseline capture.
 - Responsive viewport fixes and auto-scroll to visual area on narrow displays.
 
-## Repo Working Changes (not committed)
-- Modified: densepose_web_visual.html
-- New: python_serial_bridge.py
-- New/updated: scripts/open_densepose_web_visual.sh
-- New: security_densepose.code-workspace
+## Repo Snapshot Notes
+- This file records a historical setup snapshot from 2026-07-14.
+- Repository state should be verified from git status and git log before each new session.
 
 ## Calibration Ready Checklist
 1. Start stack:
