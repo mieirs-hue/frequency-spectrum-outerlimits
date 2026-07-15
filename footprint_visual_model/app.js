@@ -639,6 +639,20 @@
     return "#6a7894";
   }
 
+  function quadrantLaserColor(point, spatialClass) {
+    const cls = String(spatialClass || "").toLowerCase();
+    if (cls === "topside") return 0x4ea3ff;
+    if (cls === "floor_level") return 0xffd64d;
+    if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return 0xf5f8ff;
+
+    const west = point.x < ROOM_W_FT * 0.5;
+    const north = point.y >= ROOM_H_FT * 0.5;
+    if (north && west) return 0xff4da6; // NW
+    if (north && !west) return 0x4dd8ff; // NE
+    if (!north && west) return 0xffc14d; // SW
+    return 0x6dff7a; // SE
+  }
+
   function classificationDescriptor(spatialClass) {
     return ZoneClassifier.describeClassification(spatialClass);
   }
@@ -1185,6 +1199,142 @@
     exteriorLane.position.set(exteriorCenter.x, 0.02, exteriorCenter.z);
     house.add(exteriorLane);
 
+    const exteriorLand = new THREE.Mesh(
+      new THREE.PlaneGeometry(18, 11),
+      new THREE.MeshBasicMaterial({ color: 0x103025, transparent: true, opacity: 0.35 })
+    );
+    exteriorLand.rotation.set(-Math.PI / 2, wallAngle, 0);
+    exteriorLand.position.set(exteriorCenter.x, -0.005, exteriorCenter.z - 0.7);
+    house.add(exteriorLand);
+
+    const exteriorRoad = new THREE.Mesh(
+      new THREE.PlaneGeometry(12, 2.6),
+      new THREE.MeshBasicMaterial({ color: 0x1f2631, transparent: true, opacity: 0.66 })
+    );
+    exteriorRoad.rotation.set(-Math.PI / 2, wallAngle, 0);
+    exteriorRoad.position.set(exteriorCenter.x, 0.01, exteriorCenter.z - 0.5);
+    house.add(exteriorRoad);
+
+    const laneStripe = new THREE.Mesh(
+      new THREE.PlaneGeometry(9.2, 0.05),
+      new THREE.MeshBasicMaterial({ color: 0xf5f7b8, transparent: true, opacity: 0.8 })
+    );
+    laneStripe.rotation.set(-Math.PI / 2, wallAngle, 0);
+    laneStripe.position.set(exteriorCenter.x, 0.015, exteriorCenter.z - 0.5);
+    house.add(laneStripe);
+
+    const cartoonDecor = new THREE.Group();
+    scene.add(cartoonDecor);
+
+    const placeOnExterior = (x, z, y = 0.02) => {
+      const p = rotateWallXZ(x, z);
+      return new THREE.Vector3(p.x, y, p.z);
+    };
+
+    const pathGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(12, 3.4),
+      new THREE.MeshBasicMaterial({ color: 0x6fe2ff, transparent: true, opacity: 0.12 })
+    );
+    pathGlow.rotation.set(-Math.PI / 2, wallAngle, 0);
+    pathGlow.position.copy(placeOnExterior(0, -9.8, 0.012));
+    cartoonDecor.add(pathGlow);
+
+    const hillLeft = new THREE.Mesh(
+      new THREE.SphereGeometry(1.8, 14, 12),
+      new THREE.MeshBasicMaterial({ color: 0x2f8f56, transparent: true, opacity: 0.62 })
+    );
+    hillLeft.position.copy(placeOnExterior(-6.1, -11.1, 0.8));
+    hillLeft.scale.set(1.1, 0.45, 1.5);
+    cartoonDecor.add(hillLeft);
+
+    const hillRight = new THREE.Mesh(
+      new THREE.SphereGeometry(1.9, 14, 12),
+      new THREE.MeshBasicMaterial({ color: 0x3b9b61, transparent: true, opacity: 0.62 })
+    );
+    hillRight.position.copy(placeOnExterior(5.9, -11.2, 0.86));
+    hillRight.scale.set(1.2, 0.42, 1.35);
+    cartoonDecor.add(hillRight);
+
+    const treeGroup = new THREE.Group();
+    const makeTree = (x, z, trunkColor, leafColor) => {
+      const t = new THREE.Group();
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.08, 0.55, 8),
+        new THREE.MeshBasicMaterial({ color: trunkColor })
+      );
+      trunk.position.y = 0.28;
+      const crownA = new THREE.Mesh(
+        new THREE.ConeGeometry(0.28, 0.44, 10),
+        new THREE.MeshBasicMaterial({ color: leafColor, transparent: true, opacity: 0.9 })
+      );
+      crownA.position.y = 0.66;
+      const crownB = crownA.clone();
+      crownB.scale.set(0.72, 0.72, 0.72);
+      crownB.position.y = 0.88;
+      t.add(trunk, crownA, crownB);
+      t.position.copy(placeOnExterior(x, z));
+      return t;
+    };
+    const treeA = makeTree(-4.5, -11.0, 0x7c5a32, 0x55cc78);
+    const treeB = makeTree(-2.9, -10.8, 0x7c5a32, 0x62d784);
+    const treeC = makeTree(3.4, -11.05, 0x7c5a32, 0x55cc78);
+    const treeD = makeTree(5.0, -10.85, 0x7c5a32, 0x62d784);
+    treeGroup.add(treeA, treeB, treeC, treeD);
+    cartoonDecor.add(treeGroup);
+
+    const bushes = new THREE.Group();
+    const makeBush = (x, z, color, scale = 1) => {
+      const b = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2, 10, 8),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.86 })
+      );
+      b.scale.set(scale, 0.65, scale * 1.2);
+      b.position.copy(placeOnExterior(x, z, 0.12));
+      return b;
+    };
+    bushes.add(
+      makeBush(-1.2, -8.1, 0x5ed87f, 1.1),
+      makeBush(0.8, -8.0, 0x6de28b, 0.95),
+      makeBush(-3.2, -8.25, 0x5ad07b, 1.0),
+      makeBush(2.8, -8.2, 0x6de28b, 1.05)
+    );
+    cartoonDecor.add(bushes);
+
+    const flowerDots = new THREE.Group();
+    const flowerColors = [0xff79b4, 0xffd35b, 0x8fe6ff, 0xffa67e];
+    for (let i = 0; i < 18; i++) {
+      const petal = new THREE.Mesh(
+        new THREE.CircleGeometry(0.045, 10),
+        new THREE.MeshBasicMaterial({ color: flowerColors[i % flowerColors.length], transparent: true, opacity: 0.82 })
+      );
+      petal.rotation.x = -Math.PI / 2;
+      const x = -5 + (i % 9) * 1.25;
+      const z = -7.2 - Math.floor(i / 9) * 0.65;
+      const p = placeOnExterior(x, z, 0.024);
+      petal.position.set(p.x, p.y, p.z);
+      flowerDots.add(petal);
+    }
+    cartoonDecor.add(flowerDots);
+
+    const cloudGroup = new THREE.Group();
+    const makeCloud = (x, y, z) => {
+      const c = new THREE.Group();
+      const mat = new THREE.MeshBasicMaterial({ color: 0xe9f6ff, transparent: true, opacity: 0.75 });
+      const p1 = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 10), mat);
+      const p2 = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), mat);
+      const p3 = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), mat);
+      p1.position.set(-0.18, 0, 0);
+      p2.position.set(0.15, 0.05, 0);
+      p3.position.set(0.38, -0.02, 0);
+      c.add(p1, p2, p3);
+      c.position.set(x, y, z);
+      return c;
+    };
+    const cloudA = makeCloud(-3.8, roomHeight + 4.8, -13.2);
+    const cloudB = makeCloud(2.5, roomHeight + 5.4, -12.2);
+    cloudGroup.add(cloudA, cloudB);
+    cartoonDecor.add(cloudGroup);
+
     const perimeterCenter = rotateWallXZ(0, -6.0);
     const perimeterMark = new THREE.Mesh(
       new THREE.BoxGeometry(12, 0.02, 0.12),
@@ -1416,6 +1566,28 @@
     golfCart.visible = false;
     scene.add(golfCart);
 
+    const cartPilot = new THREE.Group();
+    const pilotBody = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 0.12, 0.28, 10),
+      new THREE.MeshBasicMaterial({ color: 0xffba88, transparent: true, opacity: 0.95 })
+    );
+    const pilotHead = new THREE.Mesh(
+      new THREE.SphereGeometry(0.08, 10, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffe0c9, transparent: true, opacity: 0.95 })
+    );
+    pilotBody.position.y = 0.38;
+    pilotHead.position.y = 0.58;
+    cartPilot.add(pilotBody, pilotHead);
+    cartPilot.visible = false;
+    scene.add(cartPilot);
+
+    const cartLaser = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.LineBasicMaterial({ color: 0xff4da6, transparent: true, opacity: 0.0 })
+    );
+    cartLaser.visible = false;
+    scene.add(cartLaser);
+
     const trackManager = new TrackManager({ scene, sensorA, sensorB, roomHeight });
     state.three = {
       scene,
@@ -1440,6 +1612,12 @@
       trackedAvatar,
       dogWalker,
       golfCart,
+      cartPilot,
+      cartLaser,
+      cartoonDecor,
+      treeGroup,
+      cloudGroup,
+      flowerDots,
     };
 
     window.addEventListener("resize", () => {
@@ -1479,8 +1657,34 @@
       trackedAvatar,
       dogWalker,
       golfCart,
+      cartPilot,
+      cartLaser,
+      cartoonDecor,
+      treeGroup,
+      cloudGroup,
+      flowerDots,
     } = state.three;
     camera.lookAt(0, 4.2, -8.2);
+
+    // Light environmental motion so the scene feels alive but not noisy.
+    if (treeGroup) {
+      treeGroup.children.forEach((tree, idx) => {
+        tree.rotation.z = Math.sin(nowMs * 0.0011 + idx * 0.8) * 0.045;
+      });
+    }
+    if (cloudGroup) {
+      cloudGroup.children.forEach((cloud, idx) => {
+        cloud.position.x += Math.sin(nowMs * 0.00012 + idx) * 0.0009;
+      });
+    }
+    if (flowerDots) {
+      flowerDots.children.forEach((dot, idx) => {
+        dot.material.opacity = 0.68 + Math.sin(nowMs * 0.002 + idx * 0.45) * 0.12;
+      });
+    }
+    if (cartoonDecor) {
+      cartoonDecor.visible = true;
+    }
 
     const px = (state.point.x / ROOM_W_FT) * 12 - 6;
     const pz = 6 - (state.point.y / ROOM_H_FT) * 12;
@@ -1543,8 +1747,9 @@
     sweepB.visible = false;
     longRangeRingA.visible = false;
     longRangeRingB.visible = false;
-    laserA.material.color.setHex(renderState.laser.color);
-    laserB.material.color.setHex(renderState.laser.color);
+    const quadrantColor = quadrantLaserColor(state.point, state.spatialClass);
+    laserA.material.color.setHex(quadrantColor);
+    laserB.material.color.setHex(quadrantColor);
 
     if (renderState.laser.target) {
       laserA.visible = renderState.laser.aVisible;
@@ -1586,11 +1791,45 @@
       golfCart.visible = true;
       dogWalker.position.set(-2.2 + Math.sin(t * 0.65) * 3.2, 0.04, -9.6 + Math.cos(t * 0.6) * 0.6);
       dogWalker.rotation.y = Math.sin(t * 0.35) * 0.4;
-      golfCart.position.set(2.6 + Math.sin(t * 0.4) * 2.1, 0.02, -10.1 + Math.cos(t * 0.5) * 0.45);
-      golfCart.rotation.y = 0.22 + Math.sin(t * 0.4) * 0.12;
+
+      // Cart traversal sim: slow pass from board A side to board B side.
+      const passPhase = (t * 0.045) % 1;
+      const passX = -4.9 + passPhase * 9.8;
+      const passZ = -9.9 + Math.sin(t * 0.4) * 0.35;
+      golfCart.position.set(passX, 0.02, passZ);
+      golfCart.rotation.y = 0.18 + Math.sin(t * 0.35) * 0.08;
+
+      cartPilot.visible = true;
+      cartPilot.position.set(passX + 0.08, 0.02, passZ);
+      cartPilot.rotation.y = golfCart.rotation.y;
+
+      const dA = sensorA.position.distanceTo(golfCart.position);
+      const dB = sensorB.position.distanceTo(golfCart.position);
+      const sourceSensor = dA <= dB ? sensorA : sensorB;
+      const cartQuadrantColor = quadrantLaserColor(
+        {
+          x: ((golfCart.position.x + 6) / 12) * ROOM_W_FT,
+          y: ROOM_H_FT - ((golfCart.position.z + 6) / 12) * ROOM_H_FT,
+        },
+        "window_perimeter"
+      );
+      cartLaser.visible = true;
+      cartLaser.material.opacity = 0.88;
+      cartLaser.material.color.setHex(cartQuadrantColor);
+      cartLaser.geometry.setFromPoints([
+        sourceSensor.position.clone(),
+        new THREE.Vector3(cartPilot.position.x, cartPilot.position.y + 0.58, cartPilot.position.z),
+      ]);
+
+      // Sensor ping highlight when cart is in local range.
+      if (dA < 3.0) sensorA.material.color.set(0xff4da6);
+      if (dB < 3.0) sensorB.material.color.set(0xff4da6);
     } else {
       dogWalker.visible = false;
       golfCart.visible = false;
+      cartPilot.visible = false;
+      cartLaser.visible = false;
+      cartLaser.material.opacity = 0;
     }
     if (summary.id !== "--" && (summary.state !== state.lastTrackState || summary.classification !== state.lastTrackClassification)) {
       const descriptor = classificationDescriptor(summary.classification);
