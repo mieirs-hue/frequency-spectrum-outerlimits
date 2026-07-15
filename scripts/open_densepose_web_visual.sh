@@ -7,6 +7,8 @@ URL="http://127.0.0.1:${PORT}/densepose_web_visual.html"
 BRIDGE_PORT="8786"
 BRIDGE_URL="http://127.0.0.1:${BRIDGE_PORT}/events"
 BRIDGE_HEALTH_URL="http://127.0.0.1:${BRIDGE_PORT}/health"
+SERVER_LOG="/tmp/densepose_web_visual_server.log"
+SERVER_DIR="${REPO_DIR}"
 
 find_browser() {
   for candidate in chromium-browser chromium google-chrome google-chrome-stable; do
@@ -20,8 +22,8 @@ find_browser() {
 }
 
 if ! curl -fsS "${URL}" >/dev/null 2>&1; then
-  if ! pgrep -f "python3 -m http.server ${PORT} --bind 127.0.0.1" >/dev/null 2>&1; then
-    nohup python3 -m http.server "${PORT}" --bind 127.0.0.1 > /tmp/densepose_web_visual_server.log 2>&1 &
+  if ! pgrep -f "python3 -m http.server ${PORT} --bind 127.0.0.1 --directory ${SERVER_DIR}" >/dev/null 2>&1; then
+    nohup python3 -m http.server "${PORT}" --bind 127.0.0.1 --directory "${SERVER_DIR}" > "${SERVER_LOG}" 2>&1 &
     sleep 1
   fi
 fi

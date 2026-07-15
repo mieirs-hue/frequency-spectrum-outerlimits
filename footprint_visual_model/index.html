@@ -3,207 +3,68 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Office Blueprint Tracker</title>
+  <title>DensePose Vertical Board Monitor</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="app">
-    <div id="targetBanner" class="confirm-banner" aria-live="polite"></div>
-    <aside class="panel">
-      <h1>Security Command Station</h1>
-      <p class="sub">12ft x 12ft office monitor with classified spatial events, zone awareness, and hidden engineering controls.</p>
-
-      <div class="gadget-banner" id="gadgetBanner">COMMAND STATION ONLINE</div>
-
-      <div class="card">
-        <h2>Interface Mode</h2>
-        <div class="row">
-          <button id="uiMonitorBtn" class="mode-btn">Monitor Mode</button>
-          <button id="uiDevBtn" class="mode-btn">Developer Mode</button>
-        </div>
-        <div class="row">
-          <button id="sceneThemeBtn" class="mode-btn scene-theme-btn">Scene: Daylight</button>
-        </div>
-        <div class="mono">Monitor: occupancy, movement, and event feed</div>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>DensePose Vertical Board Monitor</h1>
+        <p>Clean, low-memory visual model for fixed vertical ESP32 Board A and Board B.</p>
       </div>
-
-      <div class="card" id="monitorStatusCard">
-        <h2>Command Status</h2>
-        <div id="monitorOccupancy" class="mono">System Status: CLEAR</div>
-        <div id="monitorTracking" class="mono">Track Status: SEARCHING</div>
-        <div id="monitorMovement" class="mono">Motion Class: none</div>
-        <div id="monitorZone" class="mono">Current Zone: unknown</div>
-        <div id="monitorTime" class="mono">Time in room: 00:00</div>
-        <div id="monitorLastEvent" class="mono">Last event: system ready</div>
+      <div class="top-actions">
+        <button id="modeLive" class="btn active">Live Bridge</button>
+        <button id="modeSim" class="btn">Simulation</button>
+        <button id="calibrate" class="btn">Calibrate Empty Room</button>
+        <button id="clearTrail" class="btn">Clear Trail</button>
       </div>
+    </header>
 
-      <div class="card" id="trackMemoryCard">
-        <h2>Track Memory Card</h2>
-        <div id="trackCardId" class="mono">Track: --</div>
-        <div id="trackCardState" class="mono">State: CLEAR</div>
-        <div id="trackCardPos" class="mono">Position: X -- | Y -- | Z --</div>
-        <div id="trackCardConf" class="mono">Confidence: 0%</div>
-        <div id="trackCardA" class="mono">ESP32-A: SEARCHING | Distance: --</div>
-        <div id="trackCardB" class="mono">ESP32-B: SEARCHING | Distance: --</div>
-        <div id="trackCardVolume" class="mono">15 FT Volume: --</div>
-        <div id="trackCardFirstSeen" class="mono">First Seen: --</div>
-        <div id="trackCardEntered" class="mono">Entered Zone: --</div>
-        <div id="trackCardStopped" class="mono">Stopped: --</div>
-        <div id="trackCardDuration" class="mono">Duration: 00:00</div>
-      </div>
-      
-      <div class="card">
-        <h2>Target Acquisition</h2>
-        <div id="acqState" class="mono">State: searching</div>
-        <div id="acqSensor" class="mono">Sensor Source: --</div>
-        <div id="acqDistance" class="mono">Distance: --</div>
-        <div id="acqZone" class="mono">Zone: --</div>
-      </div>
+    <section class="status-grid">
+      <article class="card">
+        <h2>Board A</h2>
+        <div id="boardAState" class="mono">status: waiting</div>
+        <div id="boardASignal" class="mono">signal: 0.00</div>
+        <div id="boardADistance" class="mono">distance: -- ft</div>
+        <div id="boardALast" class="mono">last packet: --</div>
+      </article>
 
-      <div class="card">
-        <h2>System Pipeline</h2>
-        <div id="pipeIngress" class="mono">Ingress: waiting</div>
-        <div id="pipeClassifier" class="mono">Classifier: idle</div>
-        <div id="pipeTracker" class="mono">Tracker: idle</div>
-        <div id="pipeRenderer" class="mono">Renderer: suppressed</div>
-      </div>
+      <article class="card">
+        <h2>Board B</h2>
+        <div id="boardBState" class="mono">status: waiting</div>
+        <div id="boardBSignal" class="mono">signal: 0.00</div>
+        <div id="boardBDistance" class="mono">distance: -- ft</div>
+        <div id="boardBLast" class="mono">last packet: --</div>
+      </article>
 
-      <div class="card" id="coverageCard">
-        <h2>360 Coverage Posture</h2>
-        <div id="coverageScore" class="mono">Coverage: 0%</div>
-        <div id="blindSpotStatus" class="mono">Blind Spots: 8 sectors</div>
-        <div id="handoffStatus" class="mono">Sensor Handoff: none</div>
-        <div id="perimeterRisk" class="mono">Perimeter Risk: normal</div>
-        <div id="coverageSectors" class="coverage-grid"></div>
-      </div>
+      <article class="card">
+        <h2>Tracker</h2>
+        <div id="trackerMode" class="mono">mode: live bridge</div>
+        <div id="trackerStatus" class="mono">status: searching</div>
+        <div id="trackerPosition" class="mono">position: x --, y --</div>
+        <div id="trackerAge" class="mono">last update: --</div>
+      </article>
 
-      <div class="card" id="eventFeedCard">
-        <h2>Command Event Feed</h2>
-        <div id="eventFeed" class="event-feed mono" style="display:none;">No events yet.</div>
-        <div class="event-zone-grid">
-          <div class="event-zone">
-            <h3>Interior Room</h3>
-            <div id="eventFeedInterior" class="event-feed mono">No interior events yet.</div>
-          </div>
-          <div class="event-zone">
-            <h3>Window Perimeter</h3>
-            <div id="eventFeedWindow" class="event-feed mono">No perimeter events yet.</div>
-          </div>
-          <div class="event-zone">
-            <h3>Floor Level</h3>
-            <div id="eventFeedFloor" class="event-feed mono">No floor-level events yet.</div>
-          </div>
-          <div class="event-zone">
-            <h3>Topside</h3>
-            <div id="eventFeedTopside" class="event-feed mono">No topside events yet.</div>
-          </div>
-        </div>
-      </div>
+      <article class="card">
+        <h2>Focus</h2>
+        <div class="mono">Room: 12ft x 12ft</div>
+        <div class="mono">Height: 9ft</div>
+        <div class="mono">Boards: upper corner crown line on north wall</div>
+        <div class="mono">Window: centered between Board A and Board B</div>
+        <div class="mono">View: first-person outside opposite wall</div>
+        <div class="mono">Mission focus: perimeter + second-floor skeleton</div>
+        <div class="mono">Vault interior: camera covered, RF tracking suppressed</div>
+        <div class="mono">Echo-Shield envelope: two overlapping 20ft spheres</div>
+        <div id="systemNote" class="mono note">note: lightweight rendering active</div>
+      </article>
+    </section>
 
-      <div class="card">
-        <h2>Layout Reference</h2>
-        <div class="mono">Office size: 12.0ft x 12.0ft</div>
-        <div class="mono">Window wall: 40deg command angle</div>
-        <div class="mono">Sensor height: crown molding / 8.0ft</div>
-        <div class="mono">Board A: top-left window-wall corner, just below ceiling</div>
-        <div class="mono">Board B: top-right window-wall corner, just below ceiling</div>
-        <div class="mono">Operational sphere: 15ft radius (room reference)</div>
-        <div class="mono">Extended monitor sphere: 25ft radius (outside + above ceiling)</div>
-        <div class="mono">Command view: window perimeter / floor / interior / topside</div>
-      </div>
-
-      <div class="card dev-card">
-        <h2>Map Legend</h2>
-        <div class="mono">Orange dot: current tracked position</div>
-        <div class="mono">Orange box: tracking confidence box</div>
-        <div class="mono">Red X: stopped position marker</div>
-        <div class="mono">Green dot (sim only): true simulated target</div>
-        <div class="mono">Tip: X appears after short still hold while locked.</div>
-      </div>
-
-      <div class="card">
-        <h2>Calibration</h2>
-        <button id="calibrateBtn">Calibrate Empty Room (4s)</button>
-        <div id="calStatus" class="mono">Baseline: not calibrated</div>
-      </div>
-
-      <div class="card">
-        <h2>Input Mode (Required)</h2>
-        <div class="row">
-          <button id="modeSim" class="mode-btn">Use Simulation</button>
-          <button id="modeBridge" class="mode-btn">Use Live Bridge</button>
-        </div>
-        <div id="modeStatus" class="mono">Mode: simulation</div>
-        <div id="bridgeStatus" class="mono">Bridge: disconnected</div>
-        <div class="dev-only-block">
-          <button id="simRunBtn">Pause Simulation</button>
-          <label>Simulation Speed</label>
-          <input id="simSpeed" type="range" min="0.2" max="2.4" step="0.1" value="1.0" />
-          <div id="simSpeedLabel" class="mono">speed: 1.0x</div>
-          <label>Simulation Noise</label>
-          <input id="simNoise" type="range" min="0" max="0.8" step="0.02" value="0.18" />
-          <div id="simNoiseLabel" class="mono">noise: 0.18 ft</div>
-          <label>Board Span on Window Wall (ft)</label>
-          <input id="boardSpacing" type="range" min="6" max="10.8" step="0.1" value="10.0" />
-          <div id="boardSpacingLabel" class="mono">span: 10.0 ft</div>
-        </div>
-      </div>
-
-      <div class="card dev-card">
-        <h2>Board Distances (ft)</h2>
-        <label>Board A</label>
-        <input id="distA" type="range" min="0.5" max="15" step="0.1" value="6.5" />
-        <div id="distALabel" class="mono">A: 6.5 ft</div>
-
-        <label>Board B</label>
-        <input id="distB" type="range" min="0.5" max="15" step="0.1" value="6.0" />
-        <div id="distBLabel" class="mono">B: 6.0 ft</div>
-      </div>
-
-      <div class="card dev-card">
-        <h2>State</h2>
-        <div id="stateSummary" class="mono">state: idle</div>
-        <div id="zoneStatus" class="mono">zone: unknown</div>
-        <div id="confidence" class="mono">confidence: 0.00</div>
-        <div id="waveLevel" class="mono">wave: 0.00</div>
-        <div id="stillTimer" class="mono">still timer: 0.0s</div>
-        <div id="stillness" class="mono">stillness: moving</div>
-      </div>
-
-      <div class="card dev-card">
-        <h2>Raw Sensor Status</h2>
-        <div id="rawA" class="mono">ESP32-A: signal 0% | dist -- | pps 0</div>
-        <div id="rawB" class="mono">ESP32-B: signal 0% | dist -- | pps 0</div>
-        <div id="rawSolver" class="mono">Solver: IDLE | Renderer: SUPPRESSED</div>
-      </div>
-
-      <div class="card dev-card">
-        <h2>Attempt Recorder</h2>
-        <div id="attemptId" class="mono">run: 001</div>
-        <label for="attemptResult">Result</label>
-        <select id="attemptResult">
-          <option value="Pass">Pass</option>
-          <option value="Fail">Fail</option>
-          <option value="Jittery">Jittery</option>
-        </select>
-        <label for="attemptNotes">Notes</label>
-        <textarea id="attemptNotes" rows="3" placeholder="Target path smooth, but footprint drifts at stop."></textarea>
-        <div class="row" style="margin-top:8px;">
-          <button id="saveAttempt">Save Attempt</button>
-          <button id="exportAttempts">Export MD</button>
-          <button id="clearAttempts">Clear</button>
-        </div>
-        <div id="attemptList" class="attempt-list mono">No attempts recorded yet.</div>
-      </div>
-    </aside>
-
-    <main class="stage-wrap">
-      <div id="threeStage" class="three-stage"></div>
-      <canvas id="stage" width="1000" height="700"></canvas>
+    <main class="canvas-wrap card">
+      <canvas id="focusMap" width="1200" height="780" aria-label="Focus map"></canvas>
     </main>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

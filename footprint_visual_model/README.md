@@ -1,14 +1,13 @@
 # footprint_visual_model
 
-State-space footprint visual prototype for FSSC.
+Lightweight visual model for fixed vertical ESP32 Board A/B placement.
 
 ## What It Does
-- Separates reference/baseline from live target state.
-- Uses two-board trilateration on a 2D room plane.
-- Smooths target coordinates with EMA (StatefulVector).
-- Keeps path history (last N points) as a footprint trail.
-- Uses ghost fade instead of abrupt disappearance when confidence drops.
-- Supports simulation mode and optional bridge mode.
+- Removes layered/overlapping monitor surfaces and 3D renderer load.
+- Draws a single focus map of a 12ft x 12ft room.
+- Keeps Board A and Board B in fixed north-wall positions.
+- Fuses two board distance estimates into one target point with capped trail history.
+- Supports live bridge mode and simulation mode.
 
 ## Run
 From repo root:
@@ -18,9 +17,10 @@ python3 -m http.server 8765 --bind 127.0.0.1
 ```
 
 Open:
+- http://127.0.0.1:8765/densepose_web_visual.html
 - http://127.0.0.1:8765/footprint_visual_model/
 
 ## Notes
-- Bridge mode expects SSE from `http://127.0.0.1:8786/events` and parses `CSI,NODE_*` motion lines.
-- In bridge mode, raw board motion is converted to pseudo-distance for visualization.
-- Room plane is normalized to `10ft x 10ft`.
+- Live mode consumes SSE packets from `http://127.0.0.1:8786/events`.
+- Rendering is intentionally simple to reduce memory pressure on Jetson.
+- Trail and packet state are hard-capped to prevent unbounded browser memory growth.
