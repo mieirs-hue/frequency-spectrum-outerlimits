@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mission Log Pop-out</title>
+  <style>
+    body {
+      margin: 0;
+      background: #050b14;
+      color: #d8e7ff;
+      font: 14px/1.45 "IBM Plex Sans", sans-serif;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      padding: 12px 16px;
+      background: #0a1322;
+      border-bottom: 1px solid #22344f;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    #meta {
+      margin-top: 4px;
+      color: #90a7c7;
+      font: 12px "IBM Plex Mono", monospace;
+    }
+    #log {
+      padding: 12px 14px 24px;
+    }
+    .row {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(72, 106, 145, 0.25);
+      font-family: "IBM Plex Mono", monospace;
+      white-space: pre-wrap;
+      background: rgba(22, 34, 53, 0.35);
+      margin-bottom: 2px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    Mission Log Pop-out
+    <div id="meta">Snapshot from dashboard</div>
+  </header>
+  <div id="log">
+    <div class="row">[19:36:07] Mission control dashboard initialized</div>
+    <div class="row">[19:36:07] 10 Hz telemetry and render gates active</div>
+    <div class="row">[19:36:07] Bridge connected</div>
+    <div class="row">[19:36:07] BRICKFEET BAND entered at 10.20 ft</div>
+    <div class="row">[19:36:07] Upstairs classifier: BRICKFEET BAND activity detected</div>
+    <div class="row">[19:37:54] Zone transition -> OUTSIDE PERIMETER</div>
+    <div class="row">[19:37:54] Perimeter class: likely dog walker/pedestrian (2.17 ft/s)</div>
+    <div class="row">[19:38:08] Perimeter class: likely dog walker/pedestrian (3.47 ft/s)</div>
+    <div class="row">[19:38:08] Perimeter class: potential vehicle/golf cart (7.91 ft/s)</div>
+    <div class="row">[19:38:43] Perimeter class: likely dog walker/pedestrian (3.20 ft/s)</div>
+    <div class="row">[19:38:52] Perimeter class: likely dog walker/pedestrian (4.00 ft/s)</div>
+    <div class="row">[19:38:52] Perimeter class: likely dog walker/pedestrian (4.34 ft/s)</div>
+    <div class="row">[19:38:54] Perimeter class: likely dog walker/pedestrian (4.70 ft/s)</div>
+    <div class="row">[19:38:59] Perimeter class: likely dog walker/pedestrian (4.74 ft/s)</div>
+    <div class="row">[19:39:04] Perimeter class: likely dog walker/pedestrian (2.90 ft/s)</div>
+    <div class="row">[19:39:04] Perimeter class: likely dog walker/pedestrian (4.53 ft/s)</div>
+  </div>
+</body>
+</html>

@@ -200,7 +200,8 @@ export class TrackingEngine {
     const mappedZ = TRACKING_AXIS.invertZ ? (ROOM_BOUNDS.depth - rawPos.z) : rawPos.z;
 
     const raw = {
-      x: clamp(mappedX, -20, 32),
+      // Sensors are on the east wall, so west-side outside is non-physical in this setup.
+      x: clamp(mappedX, 0, ROOM_BOUNDS.width + 8),
       // Two sensors only provide strong horizontal cues; keep altitude in realistic indoor band.
       y: clamp((ROOM_BOUNDS.height * 0.42) + ((avgSignal - 0.5) * 1.6), 0.8, ROOM_BOUNDS.height - 0.6),
       z: clamp(mappedZ, -20, 32),

@@ -369,7 +369,8 @@ function drawZoneBullseyes(snapshot) {
   const outsideTarget = {
     x: ROOM_BOUNDS.width + 4.2 + (Math.sin(now * 1.2) * 0.55),
     y: 0.9 + (Math.sin(now * 1.9) * 0.15),
-    z: clamp((ROOM_BOUNDS.depth * 0.5) + (balance * 5.8) + (Math.cos(now * 1.1) * 0.6), -2, ROOM_BOUNDS.depth + 2),
+    // A stronger A signal means closer to z=0, stronger B means closer to z=depth.
+    z: clamp((ROOM_BOUNDS.depth * 0.5) - (balance * 5.8) + (Math.cos(now * 1.1) * 0.6), -2, ROOM_BOUNDS.depth + 2),
   };
   let upstairsTarget = {
     x: clamp((ROOM_BOUNDS.width * 0.5) + (balance * 4.8) + (Math.sin(now * 0.9) * 0.6), 0, ROOM_BOUNDS.width),
