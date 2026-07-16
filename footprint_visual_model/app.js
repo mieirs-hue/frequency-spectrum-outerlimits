@@ -345,6 +345,19 @@ function drawBullseye(point, label, color, active = false) {
   ctx.fillText(label, p.x + 18, p.y - 6);
 }
 
+function drawUpstairsAlert(active) {
+  if (!active) return;
+
+  const pulse = 0.16 + (0.16 * (0.5 + 0.5 * Math.sin(performance.now() * 0.009)));
+  const minY = ROOM_BOUNDS.height + 0.03;
+  const maxY = ROOM_BOUNDS.height + 1.95;
+  const fill = `rgba(255,48,48,${pulse.toFixed(3)})`;
+
+  drawFilledFloor(0, ROOM_BOUNDS.width, 0, ROOM_BOUNDS.depth, minY, fill);
+  drawFilledFloor(0, ROOM_BOUNDS.width, 0, ROOM_BOUNDS.depth, maxY, fill);
+  drawBox(0, ROOM_BOUNDS.width, minY, maxY, 0, ROOM_BOUNDS.depth, "rgba(255,72,72,0.78)", 1.7, [6, 4]);
+}
+
 function drawZoneBullseyes(snapshot) {
   const now = performance.now() * 0.0017;
   const key = snapshot?.zoneKey || "";
@@ -358,7 +371,7 @@ function drawZoneBullseyes(snapshot) {
     y: 0.9 + (Math.sin(now * 1.9) * 0.15),
     z: clamp((ROOM_BOUNDS.depth * 0.5) + (balance * 5.8) + (Math.cos(now * 1.1) * 0.6), -2, ROOM_BOUNDS.depth + 2),
   };
-  const upstairsTarget = {
+  let upstairsTarget = {
     x: clamp((ROOM_BOUNDS.width * 0.5) + (balance * 4.8) + (Math.sin(now * 0.9) * 0.6), 0, ROOM_BOUNDS.width),
     y: ROOM_BOUNDS.height + 2.4 + (Math.cos(now * 1.35) * 0.28) + clamp((altitude - ROOM_BOUNDS.height) * 0.2, -0.4, 1.6),
     z: clamp((ROOM_BOUNDS.depth * 0.5) - (balance * 4.8) + (Math.sin(now * 1.15) * 0.6), 0, ROOM_BOUNDS.depth),
@@ -381,6 +394,18 @@ function drawZoneBullseyes(snapshot) {
   const outsideActive = !upstairsActive;
   const insideActive = false;
 
+  // When upstairs is active, lock directly to the tracked position like the previous downstairs-follow mode.
+  if (upstairsActive && snapshot?.position) {
+    upstairsTarget = {
+      x: clamp(snapshot.position.x, 0, ROOM_BOUNDS.width),
+      y: clamp(snapshot.position.y, ROOM_BOUNDS.height + 0.2, ROOM_BOUNDS.height + 4),
+      z: clamp(snapshot.position.z, 0, ROOM_BOUNDS.depth),
+    };
+    zoneMonitors.upstairs.x += (upstairsTarget.x - zoneMonitors.upstairs.x) * 0.42;
+    zoneMonitors.upstairs.y += (upstairsTarget.y - zoneMonitors.upstairs.y) * 0.42;
+    zoneMonitors.upstairs.z += (upstairsTarget.z - zoneMonitors.upstairs.z) * 0.42;
+  }
+
   const sensorA = sensors.nodes.A?.position;
   const sensorB = sensors.nodes.B?.position;
   if (sensorA && sensorB) {
@@ -393,6 +418,8 @@ function drawZoneBullseyes(snapshot) {
   drawBullseye(insidePoint, "INSIDE OFFICE BLACKOUT", "#3d4756", insideActive);
   drawBullseye(outsidePoint, "OUTSIDE ZONE LOCK", "#59d5ff", outsideActive);
   drawBullseye(upstairsPoint, "UPSTAIRS ZONE LOCK", "#ffce6a", upstairsActive);
+
+  return { upstairsActive };
 }
 
 function drawScene(snapshot, options) {
@@ -401,7 +428,8 @@ function drawScene(snapshot, options) {
 
   drawGrid();
   drawOutdoorDecor();
-  drawZoneBullseyes(snapshot);
+  const monitorState = drawZoneBullseyes(snapshot);
+  drawUpstairsAlert(!!monitorState?.upstairsActive);
   if (options.showFloorZones) {
     drawFilledFloor(0, ROOM_BOUNDS.width, 0, ROOM_BOUNDS.depth, 0, "rgba(120,138,164,0.24)");
     // Keep indoor/outdoor split logic invisible for lower visual clutter and better performance.
