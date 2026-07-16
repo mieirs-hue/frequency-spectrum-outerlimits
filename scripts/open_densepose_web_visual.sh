@@ -21,6 +21,24 @@ find_browser() {
   return 1
 }
 
+open_url() {
+  local target_url="$1"
+  local browser
+
+  browser="$(find_browser || true)"
+  if [[ -n "${browser}" ]]; then
+    "${browser}" --new-window --app="${target_url}" "${target_url}" >/dev/null 2>&1 &
+    return 0
+  fi
+
+  if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "${target_url}" >/dev/null 2>&1 &
+    return 0
+  fi
+
+  return 1
+}
+
 if ! curl -fsS "${URL}" >/dev/null 2>&1; then
   if ! pgrep -f "python3 -m http.server ${PORT} --bind 127.0.0.1 --directory ${SERVER_DIR}" >/dev/null 2>&1; then
     nohup python3 -m http.server "${PORT}" --bind 127.0.0.1 --directory "${SERVER_DIR}" > "${SERVER_LOG}" 2>&1 &
@@ -43,10 +61,7 @@ fi
 cd "${REPO_DIR}"
 export DISPLAY="${DISPLAY:-:1}"
 
-BROWSER="$(find_browser)"
-if [[ -z "${BROWSER}" ]]; then
-  echo "No Chromium-family browser found. Install chromium-browser, chromium, or google-chrome, then retry." >&2
+if ! open_url "${URL}"; then
+  echo "No supported browser launcher found. Install chromium/chrome or xdg-open support, then retry." >&2
   exit 1
 fi
-
-exec "${BROWSER}" --new-window --app="${URL}" "${URL}"
