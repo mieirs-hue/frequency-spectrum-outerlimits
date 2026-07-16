@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import queue
 import threading
 import time
@@ -15,6 +16,7 @@ def parse_args():
     parser.add_argument("--port", type=int, default=8786)
     parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--ports", nargs="+", default=None, help="Serial ports to bridge")
+    parser.add_argument("--max-hz", type=float, default=10.0, help="Maximum telemetry packet rate sent to SSE clients")
     return parser.parse_args()
 
 
@@ -46,19 +48,56 @@ def main():
             for subscriber in dead:
                 subscribers.discard(subscriber)
 
+    max_hz = max(0.1, float(args.max_hz))
+    flush_interval = 1.0 / max_hz
+
     def queue_pump():
         broadcast("ready", {"mode": "bridge", "ports": ports, "baud": args.baud})
+        latest_by_board = {}
+        dropped_by_board = {}
+        last_flush = time.monotonic()
         while True:
-            event = event_queue.get()
-            payload = {
-                "timestamp": event.timestamp,
-                "port": event.port,
-                "board": port_to_board.get(event.port, "?"),
-                "event_type": event.event_type,
-                "message": event.message,
-                "source": event.source,
-            }
-            broadcast("packet", payload)
+            timeout = max(0.0, flush_interval - (time.monotonic() - last_flush))
+            try:
+                event = event_queue.get(timeout=timeout)
+                payload = {
+                    "timestamp": event.timestamp,
+                    "port": event.port,
+                    "board": port_to_board.get(event.port, "?"),
+                    "event_type": event.event_type,
+                    "message": event.message,
+                    "source": event.source,
+                }
+                board_id = payload["board"]
+                if board_id in latest_by_board:
+                    dropped_by_board[board_id] = dropped_by_board.get(board_id, 0) + 1
+                latest_by_board[board_id] = payload
+            except queue.Empty:
+                pass
+
+            now = time.monotonic()
+            if now - last_flush < flush_interval:
+                continue
+
+            if latest_by_board:
+                boards = {}
+                dropped_total = 0
+                for board_id in sorted(latest_by_board.keys()):
+                    boards[board_id] = dict(latest_by_board[board_id])
+                    dropped_total += int(dropped_by_board.get(board_id, 0))
+
+                outgoing = {
+                    "timestamp": time.time(),
+                    "event_type": "batch",
+                    "boards": boards,
+                    "dropped_packets": dropped_total,
+                    "bridge_max_hz": max_hz,
+                }
+                broadcast("packet", outgoing)
+                latest_by_board.clear()
+                dropped_by_board.clear()
+
+            last_flush = now
 
     class BridgeHandler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -81,7 +120,38 @@ def main():
 
         def do_GET(self):
             if self.path.startswith("/health"):
-                body = json.dumps({"ok": True, "ports": ports}).encode("utf-8")
+                mem_total_kb = 0
+                mem_available_kb = 0
+                try:
+                    with open("/proc/meminfo", "r", encoding="utf-8") as handle:
+                        for line in handle:
+                            if line.startswith("MemTotal:"):
+                                mem_total_kb = int(line.split()[1])
+                            elif line.startswith("MemAvailable:"):
+                                mem_available_kb = int(line.split()[1])
+                except Exception:
+                    pass
+
+                mem_used_kb = max(0, mem_total_kb - mem_available_kb)
+                cpu_count = os.cpu_count() or 1
+                load_1 = 0.0
+                try:
+                    load_1 = os.getloadavg()[0]
+                except Exception:
+                    pass
+
+                cpu_load_pct_est = max(0.0, min(100.0, (load_1 / cpu_count) * 100.0))
+
+                body = json.dumps(
+                    {
+                        "ok": True,
+                        "ports": ports,
+                        "bridge_max_hz": max_hz,
+                        "cpu_load_pct_est": round(cpu_load_pct_est, 2),
+                        "mem_total_mb": round(mem_total_kb / 1024.0, 1),
+                        "mem_used_mb": round(mem_used_kb / 1024.0, 1),
+                    }
+                ).encode("utf-8")
                 self._send_cors_headers("application/json; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
