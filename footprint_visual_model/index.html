@@ -62,6 +62,7 @@
           <button id="viewAbove">ABOVE GROUND</button>
           <button id="viewSide">SIDE VIEW</button>
           <button id="viewPerspective">PERSPECTIVE</button>
+          <button id="viewOuter50">OUTER 50FT VIEW</button>
           <button id="viewOrbit">3D ORBIT</button>
           <button id="resetCamera">RESET CAMERA</button>
           <button id="zoomIn">ZOOM +</button>
@@ -78,6 +79,14 @@
         <label>Smoothing
           <input id="smoothing" type="range" min="0.05" max="0.60" step="0.01" value="0.10">
           <span id="smoothingValue">0.10</span>
+        </label>
+        <label>Ceiling Transparency
+          <input id="ceilingTransparency" type="range" min="0.05" max="0.95" step="0.01" value="0.35">
+          <span id="ceilingTransparencyValue">0.35</span>
+        </label>
+        <label>Z-Plane Slice (ft)
+          <input id="zPlaneSlice" type="range" min="0" max="18" step="0.1" value="4.5">
+          <span id="zPlaneSliceValue">4.5 ft</span>
         </label>
         <label class="check"><input id="showSpheres" type="checkbox" checked> Show Sensor Spheres</label>
         <label class="check"><input id="showAvatars" type="checkbox" checked> Show Target Avatars</label>

@@ -4,6 +4,8 @@ export class ControlPanel {
       cameraMode: "orbit",
       targetFilter: 10,
       smoothing: 0.10,
+      ceilingTransparency: 0.35,
+      zPlaneSlice: 4.5,
       showSpheres: true,
       showAvatars: true,
       showFloorZones: true,
@@ -40,10 +42,11 @@ export class ControlPanel {
       above: "viewAbove",
       side: "viewSide",
       perspective: "viewPerspective",
+      outer50: "viewOuter50",
       orbit: "viewOrbit",
     };
 
-    ["viewTop", "viewAbove", "viewSide", "viewPerspective", "viewOrbit"].forEach((id) => {
+    ["viewTop", "viewAbove", "viewSide", "viewPerspective", "viewOuter50", "viewOrbit"].forEach((id) => {
       const node = document.getElementById(id);
       if (!node) return;
       node.classList.toggle("active", mapping[mode] === id);
@@ -55,6 +58,10 @@ export class ControlPanel {
     const targetFilterValue = document.getElementById("targetFilterValue");
     const smoothing = document.getElementById("smoothing");
     const smoothingValue = document.getElementById("smoothingValue");
+    const ceilingTransparency = document.getElementById("ceilingTransparency");
+    const ceilingTransparencyValue = document.getElementById("ceilingTransparencyValue");
+    const zPlaneSlice = document.getElementById("zPlaneSlice");
+    const zPlaneSliceValue = document.getElementById("zPlaneSliceValue");
 
     targetFilter.addEventListener("input", (evt) => {
       this.state.targetFilter = Number(evt.target.value);
@@ -66,6 +73,18 @@ export class ControlPanel {
       this.state.smoothing = Number(evt.target.value);
       smoothingValue.textContent = this.state.smoothing.toFixed(2);
       this.#emit("smoothing");
+    });
+
+    ceilingTransparency.addEventListener("input", (evt) => {
+      this.state.ceilingTransparency = Number(evt.target.value);
+      ceilingTransparencyValue.textContent = this.state.ceilingTransparency.toFixed(2);
+      this.#emit("ceiling-transparency");
+    });
+
+    zPlaneSlice.addEventListener("input", (evt) => {
+      this.state.zPlaneSlice = Number(evt.target.value);
+      zPlaneSliceValue.textContent = `${this.state.zPlaneSlice.toFixed(1)} ft`;
+      this.#emit("z-plane-slice");
     });
 
     const checkMap = [
@@ -89,6 +108,7 @@ export class ControlPanel {
       ["viewAbove", "above"],
       ["viewSide", "side"],
       ["viewPerspective", "perspective"],
+      ["viewOuter50", "outer50"],
       ["viewOrbit", "orbit"],
     ];
 

@@ -9,3 +9,5 @@ __pycache__/
 *.swo
 *.log
 rf_events/
+recordings/
+camera/camera_config.runtime.json

@@ -86,6 +86,7 @@ export class MissionHUD {
       above: "ABOVE GROUND",
       side: "SIDE VIEW",
       perspective: "PERSPECTIVE",
+      outer50: "OUTER 50FT VIEW",
       orbit: "3D ORBIT",
     };
     this.cameraModeLabel.textContent = labels[mode] || "3D ORBIT";

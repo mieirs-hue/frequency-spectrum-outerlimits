@@ -1,0 +1,31 @@
+{
+  "camera": {
+    "enabled": true,
+    "model": "RLC-520A",
+    "name": "reolink_front",
+    "ip_address": "192.168.1.161",
+    "mac_address": "EC:71:DB:61:E8:56",
+    "subnet_mask": "255.255.255.0",
+    "gateway": "192.168.1.1",
+    "rtsp_port": 554,
+    "onvif": {
+      "enabled": true,
+      "port": 8000
+    },
+    "credentials": {
+      "username": "admin",
+      "password": "",
+      "password_env": "REOLINK_PASS"
+    },
+    "streams": {
+      "main_path": "//h264Preview_01_main",
+      "sub_path": "//h264Preview_01_sub"
+    },
+    "latency_ms": 200,
+    "buffer_maxlen": 64,
+    "reconnect_seconds": 1.0,
+    "static_ip": true,
+    "ntp_sync": true,
+    "time_offset_ms": 0
+  }
+}

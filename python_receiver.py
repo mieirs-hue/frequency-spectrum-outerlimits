@@ -1,8 +1,10 @@
 import argparse
 import json
+import os
 import queue
 import time
 
+from camera import CameraConfigError, CameraConfirmationBridge, ReolinkStreamNode
 from processing.pipeline import ProcessingPipeline
 from receiver_io.jsonl_recorder import JsonlRecorder
 from receiver_io.replay_source import ReplaySource
@@ -83,6 +85,7 @@ class DensePose3DVisualizer:
         axis_limits=None,
         recorder=None,
         always_on_top=False,
+        camera_bridge=None,
     ):
         import matplotlib
         import matplotlib.pyplot as plt
@@ -106,6 +109,7 @@ class DensePose3DVisualizer:
         self.plt = plt
         self.recorder = recorder
         self.always_on_top = always_on_top
+        self.camera_bridge = camera_bridge
 
         self.port_colors = {}
         for idx, port in enumerate(ports):
@@ -130,6 +134,8 @@ class DensePose3DVisualizer:
         try:
             while self.plt.fignum_exists(self.figure.number):
                 self.process_events()
+                if self.camera_bridge is not None:
+                    self.camera_bridge.tick()
                 scene_frame = self.pipeline.build_scene_frame(time.time(), source_label="live")
                 self.draw_frame(scene_frame)
                 self.plt.pause(REFRESH_SECONDS)
@@ -281,6 +287,7 @@ def run_headless(
     soak=False,
     soak_output=None,
     soak_interval=5.0,
+    camera_bridge=None,
 ):
     output_queue = data_source.get_queue()
 
@@ -296,7 +303,7 @@ def run_headless(
     if soak and soak_output:
         soak_handle = open(soak_output, "a", encoding="utf-8")
 
-    def write_soak_snapshot(frame):
+    def write_soak_snapshot(frame, camera_health=None):
         if soak_handle is None:
             return
         snapshot = {
@@ -320,6 +327,8 @@ def run_headless(
                 for name, metric in frame.metrics.items()
             },
         }
+        if camera_health is not None:
+            snapshot["camera"] = camera_health
         soak_handle.write(json.dumps(snapshot, separators=(",", ":")) + "\n")
         soak_handle.flush()
 
@@ -339,12 +348,25 @@ def run_headless(
             if event is not None:
                 pipeline.process_event(event)
 
+            if camera_bridge is not None:
+                camera_bridge.tick()
+
             now = time.time()
             if (now - last_report) >= 1.0:
                 last_report = now
                 frame = pipeline.build_scene_frame(now, source_label="headless")
                 health_state = frame.health.state if frame.health is not None else "UNKNOWN"
                 print(f"PIPELINE HEALTH: {health_state}")
+                if camera_bridge is not None:
+                    camera_health = camera_bridge.health_snapshot()
+                    print(
+                        "CAMERA "
+                        f"{camera_health.get('name', 'reolink')} "
+                        f"conn={camera_health.get('connected', False)} "
+                        f"fps={camera_health.get('fps', 0.0):.2f} "
+                        f"lat={camera_health.get('latency_ms')}ms "
+                        f"drop={camera_health.get('dropped_rate_pct', 0.0):.2f}%"
+                    )
                 print("---")
                 for port in ports:
                     state = "CONNECTED" if pipeline.status_by_port.get(port, False) else "DISCONNECTED"
@@ -390,7 +412,10 @@ def run_headless(
             if soak and soak_handle is not None and (now - last_soak_write) >= max(0.5, float(soak_interval)):
                 last_soak_write = now
                 frame = pipeline.build_scene_frame(now, source_label="soak")
-                write_soak_snapshot(frame)
+                write_soak_snapshot(
+                    frame,
+                    camera_bridge.health_snapshot() if camera_bridge is not None else None,
+                )
     except KeyboardInterrupt:
         pass
     finally:
@@ -420,6 +445,7 @@ def run_vtk(
     compare_source=None,
     compare_pipeline=None,
     always_on_top=False,
+    camera_bridge=None,
 ):
     output_queue = data_source.get_queue()
     compare_queue = compare_source.get_queue() if compare_source is not None else None
@@ -466,6 +492,8 @@ def run_vtk(
         compare_scene = None
         if compare_pipeline is not None:
             compare_scene = compare_pipeline.build_scene_frame(time.time(), source_label="baseline")
+        if camera_bridge is not None:
+            camera_bridge.tick()
         visualizer.update(scene, compare_scene)
 
         if duration is not None and (time.time() - started) >= duration:
@@ -562,6 +590,16 @@ def parse_args():
         default=5.0,
         help="Seconds between soak health snapshots",
     )
+    parser.add_argument(
+        "--camera-config",
+        default=None,
+        help="Path to camera config JSON (defaults to camera/camera_config.json if present)",
+    )
+    parser.add_argument(
+        "--camera",
+        action="store_true",
+        help="Enable camera node even if config has enabled=false",
+    )
     return parser.parse_args()
 
 
@@ -581,6 +619,48 @@ def build_calibration(args):
 
 if __name__ == "__main__":
     args = parse_args()
+    camera_node = None
+    camera_bridge = None
+
+    def publish_camera_confirmation(payload):
+        health = payload.get("health", {})
+        if not health.get("connected", False):
+            return
+        print(
+            f"CAMERA {health.get('name', 'reolink')} @ {health.get('ip', '?')} "
+            f"ts={payload.get('camera_ts_ms')} shape={payload.get('frame_shape')}"
+        )
+
+    camera_config_path = args.camera_config
+    if camera_config_path is None:
+        default_path = os.path.join(os.path.dirname(__file__), "camera", "camera_config.json")
+        if os.path.exists(default_path):
+            camera_config_path = default_path
+
+    if camera_config_path is not None:
+        try:
+            if args.camera:
+                with open(camera_config_path, "r", encoding="utf-8") as handle:
+                    camera_cfg = json.load(handle)
+                camera_cfg["enabled"] = True
+                forced_cfg_path = os.path.join(os.path.dirname(camera_config_path), "camera_config.runtime.json")
+                with open(forced_cfg_path, "w", encoding="utf-8") as handle:
+                    json.dump(camera_cfg, handle, indent=2)
+                camera_config_path = forced_cfg_path
+
+            camera_node = ReolinkStreamNode(config_path=camera_config_path)
+            camera_node.start()
+            camera_bridge = CameraConfirmationBridge(
+                stream_node=camera_node,
+                publish_callback=publish_camera_confirmation,
+                min_interval_seconds=0.5,
+            )
+            print(f"Camera node started using config: {camera_config_path}")
+        except CameraConfigError as exc:
+            print(f"Camera node skipped: {exc}")
+        except Exception as exc:
+            print(f"Camera node failed to start: {exc}")
+
     if args.replay:
         data_source = ReplaySource(args.replay, speed=args.replay_speed, source_name="replay")
         if args.ports:
@@ -640,6 +720,7 @@ if __name__ == "__main__":
                 soak=args.soak,
                 soak_output=args.soak_output,
                 soak_interval=args.soak_interval,
+                camera_bridge=camera_bridge,
             )
         elif args.visualizer == "vtk":
             print("Starting VTK visualizer. Close the window or press Ctrl+C to stop.")
@@ -654,6 +735,7 @@ if __name__ == "__main__":
                 compare_source=compare_source,
                 compare_pipeline=compare_pipeline,
                 always_on_top=args.always_on_top,
+                camera_bridge=camera_bridge,
             )
         else:
             print("Starting DensePose 3D visualizer. Close the plot window or press Ctrl+C to stop.")
@@ -665,8 +747,11 @@ if __name__ == "__main__":
                 axis_limits=axis_limits,
                 recorder=recorder,
                 always_on_top=args.always_on_top,
+                camera_bridge=camera_bridge,
             )
             visualizer.start()
     finally:
+        if camera_node is not None:
+            camera_node.stop()
         if recorder is not None:
             recorder.close()
