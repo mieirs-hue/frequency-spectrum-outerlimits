@@ -32,9 +32,14 @@ export class MissionHUD {
     this.memoryHealth = document.getElementById("memoryHealth");
 
     this.logPanel = document.getElementById("missionLog");
+    this.loggingEnabled = true;
+    this.setLoggingEnabled(true);
+    this.syncLogStorage();
   }
 
   log(message, isAlert = false) {
+    if (!this.loggingEnabled) return;
+
     const line = document.createElement("div");
     line.className = `log-line${isAlert ? " alert" : ""}`;
     const ts = new Date().toTimeString().split(" ")[0];
@@ -43,6 +48,30 @@ export class MissionHUD {
     this.logPanel.scrollTop = this.logPanel.scrollHeight;
     while (this.logPanel.childNodes.length > 80) {
       this.logPanel.removeChild(this.logPanel.firstChild);
+    }
+
+    this.syncLogStorage();
+  }
+
+  setLoggingEnabled(enabled) {
+    this.loggingEnabled = !!enabled;
+    try {
+      localStorage.setItem("sf_mission_log_enabled", this.loggingEnabled ? "1" : "0");
+      localStorage.setItem("sf_mission_log_updated_at", String(Date.now()));
+    } catch {
+      // Ignore storage errors in restricted browser contexts.
+    }
+  }
+
+  syncLogStorage() {
+    try {
+      const entries = Array.from(this.logPanel.childNodes)
+        .map((node) => String(node.textContent || "").trim())
+        .filter(Boolean);
+      localStorage.setItem("sf_mission_log_entries", JSON.stringify(entries));
+      localStorage.setItem("sf_mission_log_updated_at", String(Date.now()));
+    } catch {
+      // Ignore storage errors in restricted browser contexts.
     }
   }
 

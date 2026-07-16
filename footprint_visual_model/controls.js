@@ -8,6 +8,7 @@ export class ControlPanel {
       showAvatars: true,
       showFloorZones: true,
       showSignalPaths: true,
+      missionLogging: true,
       forceDebugAvatar: false,
       sensors: {
         A: true,
@@ -130,6 +131,25 @@ export class ControlPanel {
       this.#emit("sensor-calibrate-B");
     });
 
+    document.getElementById("toggleMissionLog").addEventListener("click", () => {
+      this.state.missionLogging = !this.state.missionLogging;
+      this.#updateMissionLogButton();
+      this.#emit("mission-logging-toggle");
+    });
+
+    document.getElementById("openMissionLogPopout").addEventListener("click", () => {
+      this.#emit("open-mission-log-popout");
+    });
+
+    this.#updateMissionLogButton();
+
     this.#setActiveViewButton(this.state.cameraMode);
+  }
+
+  #updateMissionLogButton() {
+    const node = document.getElementById("toggleMissionLog");
+    if (!node) return;
+    node.textContent = this.state.missionLogging ? "MISSION LOG ON" : "MISSION LOG OFF";
+    node.classList.toggle("active", this.state.missionLogging);
   }
 }

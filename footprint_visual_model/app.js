@@ -117,6 +117,20 @@ controls.onChange((state, reason) => {
     );
   }
 
+  if (reason === "mission-logging-toggle") {
+    if (!state.missionLogging) {
+      hud.log("Mission logging disengaged for savings");
+      hud.setLoggingEnabled(false);
+    } else {
+      hud.setLoggingEnabled(true);
+      hud.log("Mission logging enabled");
+    }
+  }
+
+  if (reason === "open-mission-log-popout") {
+    window.open("./mission_log_popout.html", "missionLogPopup", "width=760,height=640,resizable=yes,scrollbars=yes");
+  }
+
   sensors.setSpheresVisible(state.showSpheres);
 });
 
@@ -638,7 +652,9 @@ function loop(nowMs) {
       : snapshot;
     hud.updateTarget(displaySnapshot);
     hud.updateSensors(sensors.getSnapshot());
-    maybeEmitMovementLogs(displaySnapshot);
+    if (state.missionLogging) {
+      maybeEmitMovementLogs(displaySnapshot);
+    }
     window.__lastTrackingSnapshot = displaySnapshot;
     lastUpdateMs = nowMs;
   }
@@ -669,6 +685,7 @@ window.addEventListener("beforeunload", () => {
 
 resize();
 applyCameraMode("orbit");
+hud.setLoggingEnabled(controls.state.missionLogging);
 hud.log("Mission control dashboard initialized");
 hud.log("10 Hz telemetry and render gates active");
 hud.updateRates({ telemetryHz: 0, renderFps: 0, dropped: 0, totalDropped: 0 });

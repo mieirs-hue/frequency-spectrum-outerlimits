@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mission Log Pop-out</title>
+  <style>
+    body { margin: 0; background: #050b14; color: #d8e7ff; font: 19px/1.6 "IBM Plex Sans", sans-serif; }
+    header { position: sticky; top: 0; padding: 12px 16px; background: #0a1322; border-bottom: 1px solid #22344f; }
+    .title { font-weight: 700; letter-spacing: 0.04em; font-size: 24px; }
+    #meta { margin-top: 6px; color: #90a7c7; font: 16px "IBM Plex Mono", monospace; }
+    #status { margin-top: 10px; font: 17px "IBM Plex Mono", monospace; }
+    #status.on { color: #74f2aa; }
+    #status.off { color: #ff9dad; }
+    .toolbar { margin-top: 10px; }
+    button { background: #12243b; color: #c9e4ff; border: 1px solid #2b4467; border-radius: 6px; padding: 9px 14px; cursor: pointer; font-size: 16px; }
+    #log { padding: 12px 14px 24px; }
+    .row { padding: 12px 14px; border-bottom: 1px solid rgba(72,106,145,0.25); font: 21px/1.54 "IBM Plex Mono", monospace; white-space: pre-wrap; }
+    .row:nth-child(odd) { background: rgba(22,34,53,0.35); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">Mission Log Pop-out</div>
+    <div id="meta">Waiting for dashboard log data...</div>
+    <div id="status" class="off">MISSION LOG: OFF</div>
+    <div class="toolbar">
+      <button id="refreshBtn" type="button">REFRESH</button>
+    </div>
+  </header>
+  <div id="log"></div>
+
+  <script>
+    const logNode = document.getElementById("log");
+    const metaNode = document.getElementById("meta");
+    const statusNode = document.getElementById("status");
+
+    function fmtTime(ts) {
+      if (!Number.isFinite(ts) || ts <= 0) return "--";
+      return new Date(ts).toLocaleTimeString();
+    }
+
+    function render() {
+      let entries = [];
+      let updatedAt = 0;
+      let enabled = false;
+
+      try {
+        entries = JSON.parse(localStorage.getItem("sf_mission_log_entries") || "[]");
+        updatedAt = Number(localStorage.getItem("sf_mission_log_updated_at") || "0");
+        enabled = localStorage.getItem("sf_mission_log_enabled") === "1";
+      } catch {
+        entries = [];
+      }
+
+      statusNode.textContent = `MISSION LOG: ${enabled ? "ON" : "OFF"}`;
+      statusNode.className = enabled ? "on" : "off";
+      metaNode.textContent = `Last update: ${fmtTime(updatedAt)} | Entries: ${entries.length}`;
+
+      logNode.innerHTML = "";
+      if (!entries.length) {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.textContent = "No mission log entries available yet.";
+        logNode.appendChild(row);
+        return;
+      }
+
+      entries.forEach((line) => {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.textContent = line;
+        logNode.appendChild(row);
+      });
+      logNode.scrollTop = logNode.scrollHeight;
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", render);
+    setInterval(render, 1000);
+    render();
+  </script>
+</body>
+</html>
