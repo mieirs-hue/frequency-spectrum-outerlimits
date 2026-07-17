@@ -10,6 +10,7 @@ import {
   FLOOR2_OPACITY_MIN,
   OUTER_VIEW_DISTANCE_FT,
   OUTER_VIEW_EYE_HEIGHT_FT,
+  SENSOR_VISUAL_RENDER_SCALE_DEFAULT,
   SENSOR_VISUAL_RADIUS_FT,
   TACTICAL_COLORS,
   VISUAL_FLOORPLAN_SIZE_FT,
@@ -45,6 +46,7 @@ let droppedPackets = 0;
 let totalDropped = 0;
 let lastZoneKey = "";
 let lastMovementClass = "";
+let lastLockMode = "";
 const zoneMonitors = {
   outside: { x: ROOM_BOUNDS.width + 4.2, y: 0.9, z: ROOM_BOUNDS.depth * 0.5 },
   upstairs: { x: ROOM_BOUNDS.width * 0.5, y: ROOM_BOUNDS.height + 2.4, z: ROOM_BOUNDS.depth * 0.5 },
@@ -52,6 +54,14 @@ const zoneMonitors = {
 
 function clamp(value, lo, hi) {
   return Math.max(lo, Math.min(hi, value));
+}
+
+function getSpectrumSphereScale(options) {
+  return clamp(options?.spectrumSphereScale ?? SENSOR_VISUAL_RENDER_SCALE_DEFAULT, 0.75, 2.0);
+}
+
+function getSpectrumSphereRadius(options) {
+  return SENSOR_VISUAL_RADIUS_FT * getSpectrumSphereScale(options);
 }
 
 function resize() {
@@ -564,6 +574,7 @@ function drawZoneBullseyes(snapshot) {
   const now = performance.now() * 0.0017;
   const key = snapshot?.zoneKey || "";
   const altitude = snapshot?.altitude ?? 0;
+  const perimeterTriggered = !!snapshot?.perimeterTriggered;
   const aNorm = sensors.nodes.A?.normalized ?? 0;
   const bNorm = sensors.nodes.B?.normalized ?? 0;
   const balance = clamp(aNorm - bNorm, -1, 1);
@@ -594,7 +605,7 @@ function drawZoneBullseyes(snapshot) {
 
   // Priority monitor policy for this test: upstairs first, otherwise outside.
   const upstairsActive = key === "UPPER_LEVEL" || key === "BRICK_FEET_BAND" || altitude > (ROOM_BOUNDS.height + 0.6);
-  const outsideActive = !upstairsActive;
+  const outsideActive = perimeterTriggered || !upstairsActive;
   const insideActive = false;
 
   // When upstairs is active, lock directly to the tracked position like the previous downstairs-follow mode.
@@ -619,15 +630,17 @@ function drawZoneBullseyes(snapshot) {
   }
 
   drawBullseye(insidePoint, "INSIDE OFFICE BLACKOUT", "#3d4756", insideActive);
-  drawBullseye(outsidePoint, "OUTSIDE ZONE LOCK", "#59d5ff", outsideActive);
-  drawBullseye(upstairsPoint, "UPSTAIRS ZONE LOCK", "#ffce6a", upstairsActive);
+  drawBullseye(outsidePoint, perimeterTriggered ? "PERIMETER LOCK" : "OUTSIDE ZONE LOCK", "#59d5ff", outsideActive);
+  drawBullseye(upstairsPoint, perimeterTriggered ? "TARGET LOCK" : "UPSTAIRS ZONE LOCK", "#ffce6a", upstairsActive || perimeterTriggered);
 
-  return { upstairsActive };
+  return { upstairsActive, perimeterTriggered };
 }
 
 function drawScene(snapshot, options) {
   const floor2Opacity = clamp(options.ceilingTransparency ?? 0.35, FLOOR2_OPACITY_MIN, FLOOR2_OPACITY_MAX);
   const sliceY = clamp(options.zPlaneSlice ?? (ROOM_BOUNDS.height * 0.5), 0, ROOM_BOUNDS.height * 2);
+  const sphereScale = getSpectrumSphereScale(options);
+  const sphereRadius = SENSOR_VISUAL_RADIUS_FT * sphereScale;
 
   ctx.fillStyle = TACTICAL_COLORS.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -670,12 +683,12 @@ function drawScene(snapshot, options) {
       const tint = node.online
         ? (node.id === "A" ? "rgba(238, 210, 135, 0.26)" : "rgba(164, 217, 170, 0.26)")
         : "rgba(112,120,134,0.15)";
-      drawDomeNet(anchor.position, SENSOR_VISUAL_RADIUS_FT, tint);
+      drawDomeNet(anchor.position, sphereRadius, tint);
 
       const yOffset = Math.abs(sliceY - anchor.position.y);
-      const sliceRadius = yOffset >= SENSOR_VISUAL_RADIUS_FT
+      const sliceRadius = yOffset >= sphereRadius
         ? 0
-        : Math.sqrt((SENSOR_VISUAL_RADIUS_FT ** 2) - (yOffset ** 2));
+        : Math.sqrt((sphereRadius ** 2) - (yOffset ** 2));
       if (sliceRadius > 0.5) {
         drawDisc(
           { x: anchor.position.x, y: sliceY, z: anchor.position.z },
@@ -707,7 +720,7 @@ function drawScene(snapshot, options) {
       ctx.fillText(anchor.label, s.x + 8, s.y - 8);
       ctx.fillStyle = "#9fd2ff";
       ctx.font = "11px IBM Plex Mono";
-      ctx.fillText(`Range: ${SENSOR_VISUAL_RADIUS_FT} ft`, s.x + 8, s.y + 10);
+      ctx.fillText(`Range: ${SENSOR_VISUAL_RADIUS_FT} ft x ${sphereScale.toFixed(2)}`, s.x + 8, s.y + 10);
     }
   });
 
@@ -716,8 +729,8 @@ function drawScene(snapshot, options) {
   if (options.showSpheres && nodeA && nodeB) {
     const yOffsetA = Math.abs(sliceY - nodeA.position.y);
     const yOffsetB = Math.abs(sliceY - nodeB.position.y);
-    const rA = yOffsetA >= SENSOR_VISUAL_RADIUS_FT ? 0 : Math.sqrt((SENSOR_VISUAL_RADIUS_FT ** 2) - (yOffsetA ** 2));
-    const rB = yOffsetB >= SENSOR_VISUAL_RADIUS_FT ? 0 : Math.sqrt((SENSOR_VISUAL_RADIUS_FT ** 2) - (yOffsetB ** 2));
+    const rA = yOffsetA >= sphereRadius ? 0 : Math.sqrt((sphereRadius ** 2) - (yOffsetA ** 2));
+    const rB = yOffsetB >= sphereRadius ? 0 : Math.sqrt((sphereRadius ** 2) - (yOffsetB ** 2));
     const dist = Math.hypot(nodeA.position.x - nodeB.position.x, nodeA.position.z - nodeB.position.z);
     const overlapStrength = clamp(((rA + rB) - dist) / Math.max(1, Math.min(rA, rB) * 2), 0, 1);
     if (overlapStrength > 0.01) {
@@ -821,6 +834,11 @@ function maybeEmitMovementLogs(snapshot) {
       hud.log(`Zone transition -> ${snapshot.zone}`);
     }
     lastZoneKey = snapshot.zoneKey;
+  }
+
+  if (snapshot.lockMode && snapshot.lockMode !== lastLockMode) {
+    hud.log(snapshot.lockMode, snapshot.lockMode === "PERIMETER LOCK");
+    lastLockMode = snapshot.lockMode;
   }
 
   if (!snapshot.movementClass || snapshot.movementClass === lastMovementClass) return;

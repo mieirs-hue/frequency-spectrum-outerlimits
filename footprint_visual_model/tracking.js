@@ -236,6 +236,10 @@ export class TrackingEngine {
       options.showAvatars &&
       (debugForced || (detected && zone.visible && confidence >= options.targetFilter))
     );
+    const perimeterTriggered = detected && zone.key !== "VAULT_INTERIOR";
+    const lockMode = perimeterTriggered
+      ? "PERIMETER LOCK"
+      : (detected ? "TARGET LOCK" : "SEARCH");
 
     const paths = anchors.map((anchor) => ({
       id: anchor.id,
@@ -259,6 +263,8 @@ export class TrackingEngine {
       paths,
       zoneKey: zone.key,
       zoneColor: hexToCss(zone.color),
+      perimeterTriggered,
+      lockMode,
       speedFtPerSec: Number(speedFtPerSec.toFixed(2)),
       movementClass: this.#classifyMovement(zone.key, speedFtPerSec, confidence),
       visibilityReason: debugForced ? "FORCED_DEBUG_MODE" : "NORMAL_FILTERING",

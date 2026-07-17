@@ -2,8 +2,16 @@ import { ROOM_BOUNDS } from "./sensors.js";
 
 export const OUTER_VIEW_DISTANCE_FT = 50;
 export const OUTER_VIEW_EYE_HEIGHT_FT = 7;
-export const SENSOR_VISUAL_RADIUS_FT = 50;
-export const VISUAL_FLOORPLAN_SIZE_FT = 100;
+// Visual-only expansion for large-scale modeling. Tracking math stays in sensors.js.
+export const SENSOR_VISUAL_RADIUS_FT = 75;
+export const VISUAL_FLOORPLAN_SIZE_FT = 140;
+
+export const ACTIVE_VISUAL_PROFILE = "large_scale_2026_07_16";
+export const REFERENCE_VISUAL_BASELINE = Object.freeze({
+  sensorVisualRadiusFt: 50,
+  visualFloorplanSizeFt: 100,
+  outerViewDistanceFt: 50,
+});
 
 export const FLOOR2_OPACITY_DEFAULT = 0.35;
 export const FLOOR2_OPACITY_MIN = 0.05;

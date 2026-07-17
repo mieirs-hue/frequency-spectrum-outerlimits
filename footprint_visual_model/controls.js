@@ -6,6 +6,7 @@ export class ControlPanel {
       smoothing: 0.10,
       ceilingTransparency: 0.35,
       zPlaneSlice: 4.5,
+      spectrumSphereScale: 1.50,
       showSpheres: true,
       showAvatars: true,
       showFloorZones: true,
@@ -62,6 +63,8 @@ export class ControlPanel {
     const ceilingTransparencyValue = document.getElementById("ceilingTransparencyValue");
     const zPlaneSlice = document.getElementById("zPlaneSlice");
     const zPlaneSliceValue = document.getElementById("zPlaneSliceValue");
+    const spectrumSphereScale = document.getElementById("spectrumSphereScale");
+    const spectrumSphereScaleValue = document.getElementById("spectrumSphereScaleValue");
 
     targetFilter.addEventListener("input", (evt) => {
       this.state.targetFilter = Number(evt.target.value);
@@ -85,6 +88,12 @@ export class ControlPanel {
       this.state.zPlaneSlice = Number(evt.target.value);
       zPlaneSliceValue.textContent = `${this.state.zPlaneSlice.toFixed(1)} ft`;
       this.#emit("z-plane-slice");
+    });
+
+    spectrumSphereScale.addEventListener("input", (evt) => {
+      this.state.spectrumSphereScale = Number(evt.target.value);
+      spectrumSphereScaleValue.textContent = `${this.state.spectrumSphereScale.toFixed(2)}x`;
+      this.#emit("spectrum-sphere-scale");
     });
 
     const checkMap = [

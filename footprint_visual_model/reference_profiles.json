@@ -1,0 +1,17 @@
+{
+  "active_profile": "large_scale_2026_07_16",
+  "profiles": {
+    "baseline_reference": {
+      "sensor_visual_radius_ft": 50,
+      "visual_floorplan_size_ft": 100,
+      "outer_view_distance_ft": 50,
+      "notes": "Known working visual baseline"
+    },
+    "large_scale_2026_07_16": {
+      "sensor_visual_radius_ft": 75,
+      "visual_floorplan_size_ft": 140,
+      "outer_view_distance_ft": 50,
+      "notes": "Expanded spectrum spheres and larger display perimeter"
+    }
+  }
+}

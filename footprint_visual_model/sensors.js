@@ -13,7 +13,7 @@ export const SENSOR_WALL_VALUE = ROOM_BOUNDS.width;
 // Indoor/outdoor split is invisible and near the sensor/window wall, not room center.
 export const SPLIT_WALL_AXIS = "x";
 export const SPLIT_WALL_VALUE = ROOM_BOUNDS.width - 3;
-export const SPLIT_INDOOR_SIDE = "high";
+export const SPLIT_INDOOR_SIDE = "low";
 
 const SENSOR_LAYOUT = {
   A: {

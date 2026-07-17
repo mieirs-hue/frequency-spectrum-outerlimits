@@ -128,7 +128,7 @@ export class MissionHUD {
     this.zoneLabel.textContent = snapshot.zone;
     this.targetLocation.textContent = `Location: ${snapshot.floor} | ${snapshot.sector}`;
     this.targetAltitude.textContent = `Altitude: ${snapshot.altitude} ft`;
-    this.targetZone.textContent = `Zone: ${snapshot.zone} | Closest: ${snapshot.dominantSensor}`;
+    this.targetZone.textContent = `Zone: ${snapshot.zone} | Closest: ${snapshot.dominantSensor} | Lock: ${snapshot.lockMode || "SEARCH"}`;
     this.targetConfidence.textContent = `Confidence: ${snapshot.confidence}% | Overlap: ${snapshot.overlapPct}%`;
   }
 
